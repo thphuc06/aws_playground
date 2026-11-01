@@ -13,6 +13,15 @@ export function readWorkspace(storage:Pick<Storage,'getItem'|'setItem'>):Archite
  return createWorkspace(g.graph);
 }
 export function saveWorkspace(storage:Pick<Storage,'setItem'>,workspace:ArchitectureWorkspace){storage.setItem(workspaceKey,JSON.stringify(workspace))}
+export function acceptAssistantResult(workspace:ArchitectureWorkspace,result:AssistantResult):ArchitectureWorkspace {
+ if(result.mode==='review')return {...workspace,review:result};
+ const parsed=validateReviewGraph(result.draft);if(!parsed.ok)throw new Error('AI draft failed client validation.');
+ return {...workspace,draft:parsed.graph,draftBase:result.baseFingerprint,proposal:result};
+}
+export function completionNotice(mode:'review'|'design',stale:boolean){
+ if(stale)return mode==='design'?'AI proposal created for an older snapshot. Rerun before adopting.':'Review completed for an older snapshot. Rerun to assess your latest changes.';
+ return mode==='design'?'AI proposal created. The editable diagram is in the AI proposal tab below.':'Review complete. Findings are in AI review. To generate a separate diagram, choose Build AI proposal.';
+}
 export function isDraftStale(workspace:ArchitectureWorkspace){return workspace.draftBase!==fingerprintGraph(workspace.original)}
 export function graphChanges(before:Graph,after:Graph):string[]{
  const changes:string[]=[];for(const n of before.nodes)if(!after.nodes.some(x=>x.id===n.id))changes.push('Remove '+n.label);

@@ -7,3 +7,5 @@
 .architecture-tabs>button[aria-selected=false]:hover{background:#233a54;color:#f4f9ff}
 .assistant-controls button:focus-visible,.architecture-tabs>button:focus-visible,.assistant-report>button:focus-visible,.assistant-controls input:focus-visible,.assistant-controls select:focus-visible,.assistant-controls textarea:focus-visible{outline:2px solid #ffb372;outline-offset:3px}
 @media(prefers-reduced-motion:reduce){.assistant-controls button,.architecture-tabs>button,.assistant-report>button{transition:none}}
+
+.assistant-empty>button{appearance:none;min-height:42px;padding:10px 16px;border:1px solid #45607d;border-radius:9px;background:#1b2c42;color:#e2ecf8;font:inherit;font-size:13px;font-weight:600;cursor:pointer}.assistant-empty>button:hover:not(:disabled){background:#29425f;border-color:#85acd6}.assistant-empty>button:disabled{background:#182638;border-color:#34465c;color:#8ea1b8;cursor:not-allowed}.assistant-empty>button:focus-visible{outline:2px solid #ffb372;outline-offset:3px}.assistant-report{scroll-margin-top:24px}
