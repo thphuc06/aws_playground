@@ -1,0 +1,34 @@
+import {pdfTheorySupplements,pdfReviewSources} from './theoryPdfUpdates';
+import './theory.css';
+
+export const pdfReadingInventory={
+ title:'Tutorials Dojo DVA-C02 study-guide preview',authors:'Jon Bonso and Carlo Acebedo',physicalPages:40,textPagesReviewed:40,renderedPagesReviewed:40,ocrRequired:false,
+ sha256:'92e8cf28db92d7d6e7bfba7ff27a9755e87e223344b7d68ad447fc89de357aa4',
+ ranges:[
+  {physical:'1',printed:'Cover',topic:'C02 title and authors',status:'Source identity; no exam-scope inference.'},
+  {physical:'2–6',printed:'1–5',topic:'Table of contents',status:'Index only. Later chapters are not in this file.'},
+  {physical:'7',printed:'6',topic:'Introduction',status:'Reviewed; marketing/career claims not imported.'},
+  {physical:'8–12',printed:'11–15',topic:'Study advice, release illustration and service list',status:'Synthesized as source-literacy guidance, not exam-frequency predictions.'},
+  {physical:'13–16',printed:'16–19',topic:'Cross-service scenario tables',status:'Compared with existing lessons; targeted corrections and independent cases added.'},
+  {physical:'17–24',printed:'20–27',topic:'IAM identities, policies, conditions and evaluation figures',status:'Existing IAM lessons extended; simplified rules corrected.'},
+  {physical:'25–30',printed:'28–33',topic:'Cross-account access and PassRole',status:'Two-stage authorization and delegation explained; clipped JSON not reconstructed.'},
+  {physical:'31–32',printed:'34–35',topic:'STS operations',status:'API selection, regional endpoints and credential/session distinctions updated.'},
+  {physical:'33–37',printed:'36–40',topic:'Lambda and direct invocation',status:'Invocation contracts, retries, payload/deadline caveats checked.'},
+  {physical:'38–40',printed:'41–43',topic:'Event source mappings and filtering',status:'Polling/batching/source-specific discard behavior explained.'},
+ ],
+};
+export const pdfCorrectionNotes=[
+ {pages:'20–21',topic:'Condition matching',note:'StringLike is case-sensitive wildcard matching; it is not the case-insensitive equality operator.',source:'pdf-condition'},
+ {pages:'22–28',topic:'Policy principal and resource scope',note:'Account-root principal syntax is account delegation. Object actions need the appropriate object ARN pattern; the short policy flow is not complete IAM enforcement.',source:'pdf-principal'},
+ {pages:'28–30',topic:'Passing versus assuming a role',note:'PassRole authorizes supplying a role to a service operation; it does not return credentials or independently grant workload-creation permission.',source:'pdf-passrole'},
+ {pages:'31–32',topic:'STS endpoint and API choice',note:'Regional endpoints exist; session duration/caller constraints depend on the actual operation and role context.',source:'pdf-sts-region'},
+ {pages:'14,34–35',topic:'API integration deadlines',note:'Identify REST/HTTP and endpoint type; 29 seconds is not a universal integration maximum.',source:'pdf-rest-quota'},
+ {pages:'36–37',topic:'Lambda asynchronous payload/retry',note:'Current quota documentation differs from the old 256 KB statement. Acceptance is not completion; function errors and throttling/system failures have different retry behavior.',source:'pdf-limits'},
+ {pages:'15–16',topic:'One-line scenario answers',note:'Identity-pool credentials differ from application sign-in. Dry-run is command-specific; visibility timeout is not exactly-once processing.',source:'pdf-dryrun'},
+ {pages:'38–40',topic:'Filtering and batches',note:'Filtering is source-specific and can discard work before invocation. Envelope size and metadata prevent a universal records-per-batch arithmetic shortcut.',source:'pdf-filter'},
+];
+
+export default function PdfReadingGuide({selected,onOpen}:{selected:string;onOpen:(id:string)=>void}){
+ const matching=pdfTheorySupplements.find(x=>x.chapterId===selected);
+ return <aside className="pdf-study-guide" aria-label="Supplied PDF reading guide"><div className="pdf-study-heading"><div><small>SUPPLEMENTARY READING · C02 SOURCE / C03 REVIEW</small><h3>A preview, checked against current AWS guidance</h3></div><span>40 / 40 PDF pages reviewed</span></div><p>The supplied {pdfReadingInventory.title} by {pdfReadingInventory.authors} contains selected material, not the full book. Its contents list is longer than the available pages. New teaching text, examples and questions are original; publisher pages and artwork are not redistributed.</p>{matching&&<p className="pdf-selected-note">This lesson has targeted additions from physical PDF pages {matching.pdfPages.join(', ')} (printed {matching.printedPages}). Each added section includes its own reading note and official references.</p>}{matching&&<ul className="pdf-section-jumps">{matching.sections.map(s=><li key={s.id}><a href={'#'+s.id}>Jump to {s.title.replace(/^\d+\. /,'')}</a></li>)}</ul>}<button className="pdf-study-button" onClick={()=>onOpen('study-source-judgment')}>Read the source-literacy lesson</button><details><summary>What was actually read, and what remains unavailable</summary><p>All 40 pages were extracted, rendered and visually inspected, including tables and diagrams. No page required OCR. Some examples on PDF 25–27 contain visibly clipped code; missing text was not guessed. Printed 7–10 and chapters after printed 43 are not supplied. No source claim is made for absent chapters.</p><div className="pdf-table-scroll"><table><thead><tr><th>PDF page</th><th>Printed page</th><th>Available material</th><th>Review decision</th></tr></thead><tbody>{pdfReadingInventory.ranges.map(r=><tr key={r.physical}><td>{r.physical}</td><td>{r.printed}</td><td>{r.topic}</td><td>{r.status}</td></tr>)}</tbody></table></div></details><details><summary>Important corrections and distinctions ({pdfCorrectionNotes.length})</summary><p>These notes identify review targets rather than reproduce the publisher’s scenario table. They do not claim an exhaustive errata list for the complete book.</p>{pdfCorrectionNotes.map(note=>{const source=pdfReviewSources.find(s=>s.id===note.source)!;return <section key={note.topic} className="pdf-correction"><h4>{note.topic}</h4><p>{note.note}</p><small>Physical PDF pages {note.pages}. Official reference checked {source.verified}.</small><a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a></section>})}</details><details><summary>Follow the supplementary sections</summary><div className="pdf-supplement-links">{pdfTheorySupplements.map(s=><button key={s.chapterId} onClick={()=>onOpen(s.chapterId)}><b>{s.chapterId.replaceAll('-',' ')}</b><span>{s.sections.length} targeted section{s.sections.length===1?'':'s'} · PDF {s.pdfPages.join(', ')}</span></button>)}</div><p>The original chapters, section IDs, reading progress and bookmarks are retained. C03 AI-specific lessons remain sourced separately; the C02 preview does not verify those objectives.</p></details></aside>;
+}

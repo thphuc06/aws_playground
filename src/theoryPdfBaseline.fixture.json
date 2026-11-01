@@ -1,0 +1,290 @@
+[
+  {
+    "id": "iam",
+    "sectionIds": [
+      "identity",
+      "roles",
+      "least-privilege",
+      "evaluation",
+      "temporary",
+      "iam-practice"
+    ],
+    "questionCount": 2,
+    "checksSha256": "af6feff896929246431f41e3ca11733d0f0c4797f3fcf970ff8a2604c025d17b"
+  },
+  {
+    "id": "serverless",
+    "sectionIds": [
+      "request",
+      "handler",
+      "reads",
+      "queue",
+      "batch",
+      "serverless-lab"
+    ],
+    "questionCount": 2,
+    "checksSha256": "6fe822992b949ecfdb8db7d2012a0aac3dc052884d1bc9c902c955764bff0c02"
+  },
+  {
+    "id": "cicd",
+    "sectionIds": [
+      "pipeline",
+      "buildspec",
+      "sam-template",
+      "release",
+      "diagnose",
+      "rollback-lab"
+    ],
+    "questionCount": 2,
+    "checksSha256": "59222dd5b6537aebb6dfe331b105eb8d9a86326847b5a66101ce759844121f46"
+  },
+  {
+    "id": "dev-application",
+    "sectionIds": [
+      "dev-application-s1",
+      "dev-application-s2",
+      "dev-application-s3",
+      "dev-application-s4",
+      "dev-application-s5"
+    ],
+    "questionCount": 3,
+    "checksSha256": "e29811f48f30cf1ec6140be341247f20bc3770dbaee661c761877f61843b7ba4"
+  },
+  {
+    "id": "dev-events",
+    "sectionIds": [
+      "dev-events-s1",
+      "dev-events-s2",
+      "dev-events-s3",
+      "dev-events-s4",
+      "dev-events-s5",
+      "dev-events-s6"
+    ],
+    "questionCount": 3,
+    "checksSha256": "2af7e7133ed35b1b35d2fbff58bb9872d8c51f6213e08d2cc4fb8bf79f2869e0"
+  },
+  {
+    "id": "dev-lambda",
+    "sectionIds": [
+      "dev-lambda-s1",
+      "dev-lambda-s2",
+      "dev-lambda-s3",
+      "dev-lambda-s4",
+      "dev-lambda-s5",
+      "dev-lambda-s6"
+    ],
+    "questionCount": 3,
+    "checksSha256": "8bfcafbe909cc13465fe142e69b8b683cd4b7490027ccab380db5d9921a4ab47"
+  },
+  {
+    "id": "dev-dynamodb",
+    "sectionIds": [
+      "dev-dynamodb-s1",
+      "dev-dynamodb-s2",
+      "dev-dynamodb-s3",
+      "dev-dynamodb-s4",
+      "dev-dynamodb-s5",
+      "dev-dynamodb-s6"
+    ],
+    "questionCount": 3,
+    "checksSha256": "49b064ecd89e812da0a5cdc1f4d408203ae969a4e8d7b628d0f3c4ced1088b29"
+  },
+  {
+    "id": "dev-data-safety",
+    "sectionIds": [
+      "dev-data-safety-s1",
+      "dev-data-safety-s2",
+      "dev-data-safety-s3",
+      "dev-data-safety-s4",
+      "dev-data-safety-s5",
+      "dev-data-safety-s6"
+    ],
+    "questionCount": 3,
+    "checksSha256": "c6a3367cfbc0e64efcce09639da60ac4125202f8826d567db2fe549630a04a24"
+  },
+  {
+    "id": "dev-objects",
+    "sectionIds": [
+      "dev-objects-s1",
+      "dev-objects-s2",
+      "dev-objects-s3",
+      "dev-objects-s4",
+      "dev-objects-s5",
+      "dev-objects-s6"
+    ],
+    "questionCount": 3,
+    "checksSha256": "5779b06d5ad71d2e9a0d86cd470edeab06f1994083198b39621a232cc59551d5"
+  },
+  {
+    "id": "dev-ai-integration",
+    "sectionIds": [
+      "dev-ai-integration-s1",
+      "dev-ai-integration-s2",
+      "dev-ai-integration-s3",
+      "dev-ai-integration-s4",
+      "dev-ai-integration-s5",
+      "dev-ai-integration-s6"
+    ],
+    "questionCount": 3,
+    "checksSha256": "2ce86d8a0bd30a8c13ede35340b8df7a7b99e89cde97f74b94b8be52b80b9b64"
+  },
+  {
+    "id": "security-iam-sts",
+    "sectionIds": [
+      "principal",
+      "policies",
+      "conditions",
+      "assume",
+      "debug",
+      "signed-access"
+    ],
+    "questionCount": 3,
+    "checksSha256": "e4c23442cca297b877a85b4174b126fba5c4cbaa6b6427e35bf25f3e13f4dbab"
+  },
+  {
+    "id": "security-cognito",
+    "sectionIds": [
+      "choice",
+      "federation",
+      "verification",
+      "scopes",
+      "lifecycle"
+    ],
+    "questionCount": 3,
+    "checksSha256": "9f17237710f236794991749edf6b70eb412330fd253bbe99d37c502e68b5cb52"
+  },
+  {
+    "id": "security-kms",
+    "sectionIds": [
+      "layers",
+      "envelope",
+      "authorization",
+      "context",
+      "cross",
+      "rotation"
+    ],
+    "questionCount": 3,
+    "checksSha256": "ecb492c5cd4b978b96dcf75c208ce5f914289cfb67b04e7cdc01117ca7192ed2"
+  },
+  {
+    "id": "security-sensitive-data",
+    "sectionIds": [
+      "classification",
+      "storage",
+      "certificates",
+      "secrets",
+      "masking",
+      "tenants"
+    ],
+    "questionCount": 3,
+    "checksSha256": "2fd32369bcff26e39e89899694376198c7ca6e87aad2aed4c6cce5b74189d5d0"
+  },
+  {
+    "id": "security-ai-controls",
+    "sectionIds": [
+      "scope",
+      "access",
+      "privacy",
+      "filter",
+      "agent",
+      "monitor"
+    ],
+    "questionCount": 3,
+    "checksSha256": "4856c9d67f970f509794545cd1582a4fc69c759f614328c2456a19a4c1d95a2f"
+  },
+  {
+    "id": "release-artifacts",
+    "sectionIds": [
+      "artifact-contract",
+      "zip-image",
+      "sam-build",
+      "resources",
+      "iac-review",
+      "artifact-exercise",
+      "container-artifact"
+    ],
+    "questionCount": 3,
+    "checksSha256": "828674209ad60f5159e50b7c81e244858579abae4f2188c1e8d501aabf35d2c9"
+  },
+  {
+    "id": "layered-testing",
+    "sectionIds": [
+      "test-contract",
+      "unit-example",
+      "fixtures",
+      "local-limit",
+      "deployed-tests",
+      "q-tests",
+      "ai-workflow"
+    ],
+    "questionCount": 3,
+    "checksSha256": "22a12f8cd70c218c28c84e52e8958a97073fcd238e34bed9fa358f1cd0b63c8f"
+  },
+  {
+    "id": "release-environments",
+    "sectionIds": [
+      "identity",
+      "stages",
+      "variables",
+      "aliases",
+      "stack-update",
+      "promotion-exercise",
+      "config-selection"
+    ],
+    "questionCount": 3,
+    "checksSha256": "c9992d0e8324e2fc9a9ad0ab78baa46772fcf9652c4870278550276348ebb8f0"
+  },
+  {
+    "id": "build-pipelines",
+    "sectionIds": [
+      "chain",
+      "buildspec",
+      "secrets-artifacts",
+      "ordering",
+      "failure-evidence",
+      "ai-ci"
+    ],
+    "questionCount": 3,
+    "checksSha256": "65798c785f66413ef7baddad1e1a4ec44a162c0f061bcadd636e089436681584"
+  },
+  {
+    "id": "progressive-release",
+    "sectionIds": [
+      "strategy-contract",
+      "platforms",
+      "health-rollout",
+      "rollback",
+      "appconfig",
+      "containers-c03"
+    ],
+    "questionCount": 3,
+    "checksSha256": "5256cd69f17431cab722a9b6e41a250d059997630a557938d0eb1dfb31e655ce"
+  },
+  {
+    "id": "observe-debug",
+    "sectionIds": [
+      "signals",
+      "structured",
+      "query",
+      "trace",
+      "deploy-health",
+      "current-ai"
+    ],
+    "questionCount": 3,
+    "checksSha256": "9991cb8127a8e9f892d11ae2db4d2513522a6fa8aeab41dc6392610dfbe34f2e"
+  },
+  {
+    "id": "measure-optimize",
+    "sectionIds": [
+      "metric-contract",
+      "emf-example",
+      "alarm",
+      "concurrency-profile",
+      "cache",
+      "messaging-ai",
+      "log-bottlenecks"
+    ],
+    "questionCount": 3,
+    "checksSha256": "3a709b8df67f889b0542b7ab300d8173c0a732255a44ef592b02368acb532058"
+  }
+]

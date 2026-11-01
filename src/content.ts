@@ -1,6 +1,8 @@
 import {developmentChapters,developmentSources} from './theoryDevelopment';
 import {securityChapters,securitySources} from './theorySecurity';
 import {deliveryChapters,deliverySources} from './theoryDelivery';
+import {withPdfSupplements,pdfReviewSources} from './theoryPdfUpdates';
+import {sourceLiteracyChapter} from './theorySourceLiteracy';
 /** Original study material. Official sources checked 2026-11-01; examples are not AWS-tested. */
 export type Source = { id: string; title: string; url: string; verified: string };
 export type Chapter = { domain?: 'development'|'security'|'deployment'|'troubleshooting'; taskIds?:string[]; versionTaskIds?:Partial<Record<'DVA-C02'|'DVA-C03',string[]>>; serviceIds?:string[]; coverageNotes?:string[]; examVersions?:('DVA-C02'|'DVA-C03')[]; id: string; title: string; kicker: string; summary: string; objectives: string[]; sections: { id: string; title: string; body: string[]; code?: string; language?: string; sourceIds: string[] }[]; checks: { question: string; options: string[]; answer: number; explanations: string[] }[]; relatedMission: string };
@@ -270,5 +272,5 @@ export const glossary = [
  {term:'Trace',definition:'A connected view of a request across operations and services, used alongside logs and metrics.'}
 ];
 
-export const sources:Source[]=[...foundationSources,...developmentSources,...securitySources,...deliverySources];
-export const chapters:Chapter[]=[...foundationChapters,...developmentChapters,...securityChapters,...deliveryChapters];
+export const sources:Source[]=[...foundationSources,...developmentSources,...securitySources,...deliverySources,...pdfReviewSources];
+export const chapters:Chapter[]=[...withPdfSupplements([...foundationChapters,...developmentChapters,...securityChapters,...deliveryChapters]),sourceLiteracyChapter];

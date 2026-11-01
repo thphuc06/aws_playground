@@ -1,5 +1,39 @@
 # Theory coverage review — DVA-C02 and DVA-C03
 
+## PDF-preview follow-up (2026-11-01)
+
+The supplied Tutorials Dojo **DVA-C02 preview contains40 actual PDF pages**, not
+the complete book advertised in its contents. All40 pages were extracted,
+rendered and visually inspected, including scenario tables and diagrams. Printed
+pages7–10 and the body after printed43 are not supplied. See
+`PDF-THEORY-MAP.md` for the map prepared before code changes and
+`PDF-THEORY-VERIFICATION.md` for the verification boundary.
+
+The update adds13 focused sections to9 existing lessons, one original
+source-literacy companion chapter and15 original questions. Existing chapter and
+section IDs and the first63 questions are preserved. This appendix does not add
+extra official skills or duplicate the173 original matrix rows below.
+
+| Existing lesson | Added section IDs | Physical PDF pages | Purpose |
+| --- | --- | --- | --- |
+| security-iam-sts | preview-condition-operators; preview-cross-account-resource; preview-passrole-delegation; preview-sts-operation-choice |17–32|Case/wildcard/context, account trust/resource scope, delegation and STS selection.|
+| dev-lambda | preview-invocation-contracts; preview-batching-filtering |33–40|Acceptance versus completion, retries, quotas, managed polling and filtering.|
+| dev-application | preview-api-deadlines |14,34–35|API-product deadlines, browser CORS and authorized cache invalidation.|
+| security-cognito | preview-federation-purpose |15,31–32|Application tokens versus AWS-credential exchange.|
+| dev-objects | preview-object-prefix |22–28|Object ARN scope and multi-stage cross-account reasoning.|
+| dev-dynamodb | preview-database-scenarios |14|TTL cleanup versus expiry enforcement and evidence-based index/capacity diagnosis.|
+| release-artifacts | preview-package-reuse |13|Artifact compatibility, conditional environment reuse and temporary storage.|
+| layered-testing | preview-cli-dry-run |15–16|Command-specific permission checks versus offline tests and deployment evidence.|
+| progressive-release | preview-rollout-evidence |9–10,15|Release identity, platform-specific strategies and health/rollback evidence.|
+
+`study-source-judgment` is a study-method companion available for both versions;
+it is not labelled as a new examined task. C03 AI/security lessons remain sourced
+independently, not attributed to the C02 preview. The reading-guide UI supplies
+physical/printed locators, corrections, unavailable-content boundaries and links
+to the new sections. All examples are educational and unexecuted against AWS.
+
+---
+
 Reviewed 2026-11-01 against the version-specific official domain pages. This is an editorial traceability matrix, not an AWS endorsement, official curriculum, question bank, or promise of exam readiness. Skill labels below are terse original paraphrases, not copied exam-guide text.
 
 ## Meaning of coverage
