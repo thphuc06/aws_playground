@@ -11,15 +11,17 @@ npm run start:backend:local
 ```
 
 The local script loads ignored `.env.local`; Render uses `npm run start:backend`
-with its environment settings. OpenAI keys stay server-side. A distinct 32+
-character `REVIEW_ACCESS_TOKEN` and exact origin allowlist are mandatory.
+with its environment settings. OpenAI keys stay server-side. No reviewer token
+is required. Anyone reaching the URL can request paid reviews. Keep the exact
+origin allowlist, but note CORS is not authentication; non-browser clients can
+forge Origin. Budget, concurrency and rate limits are shared by all callers.
 
 ## API and limits
 
 - `GET /health`: process liveness only.
-- `GET /api/review/status`: bearer token and allowed Origin required; reports
-  enabled/reason, limits, and budget with `scope:process`, `resetsOnRestart:true`.
-- `POST /api/review`: same auth, JSON content type, `X-Architecture-Review:1`,
+- `GET /api/review/status`: allowed Origin required, no bearer token; reports
+  enabled/reason, authentication:none, limits, and budget with `scope:process`, `resetsOnRestart:true`.
+- `POST /api/review`: allowed Origin, JSON content type, `X-Architecture-Review:1`,
   body `{graph,baseFingerprint,consent:true}`. Result contains guarded proposal
   or advice only. Safe errors do not expose raw provider responses.
 - Model fixed to `gpt-5.4-mini-2026-03-17`; strict Responses schema, no tools,

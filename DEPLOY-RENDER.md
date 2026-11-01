@@ -21,24 +21,27 @@ both typechecks/builds and sensitive-file checks, with an always-run required
 job that fails unless all required verification succeeded. No deploy hook or
 paid API test runs in CI.
 
-## Environment: seven values
+## Environment: six values
 
 | Variable | Value |
 | --- | --- |
 | `NODE_VERSION` | `22` |
 | `OPENAI_API_KEY` | Your existing backend-only key |
-| `REVIEW_ACCESS_TOKEN` | Different random secret, 32+ characters |
 | `REVIEW_ALLOWED_ORIGINS` | `https://aws-developer-playground-phuc.pointykayak.chatgpt.site` |
 | `REVIEW_MODEL` | `gpt-5.4-mini-2026-03-17` |
 | `REVIEW_BUDGET_USD` | `1`, per-process reservation allowance |
 | `REVIEW_ENABLED` | `true` |
 
-The Blueprint uses `sync:false` for secrets. On an existing service, enter/keep
-them directly in Environment; do not assume Blueprint sync creates missing
-secret values. Remove obsolete `REVIEW_LEDGER_PATH` and
+The Blueprint uses `sync:false` for the OpenAI key. On an existing service, enter/keep
+it directly in Environment; do not assume Blueprint sync creates missing
+secret values. Remove obsolete `REVIEW_ACCESS_TOKEN`, `REVIEW_LEDGER_PATH` and
 `REVIEW_PERSISTENT_DISK_CONFIRMED` fields if desired; this code ignores them.
 Missing credentials or invalid budget still disable review. Do not put the
-OpenAI key in frontend `VITE_` variables or in the review token field.
+OpenAI key in frontend `VITE_` variables or anywhere in the browser UI.
+
+Review endpoints have no user authentication. Anyone knowing the URL can use
+the owner's API allowance. CORS does not stop clients that forge an allowed
+Origin. The budget, concurrency limit and rate limit are process-wide.
 
 ## What changed about the budget
 
@@ -58,17 +61,16 @@ Free compute is not a promise of free OpenAI usage or no Render usage overages.
 After Render reports Live, use its actual HTTPS backend URL:
 
 1. `/health` returns 200 (liveness only).
-2. Status with the allowed Origin but no token returns 401; foreign Origin 403.
-3. Authenticated `/api/review/status` reports `enabled:true`,
+2. Status with the allowed Origin and no token returns 200; foreign Origin 403.
+3. `/api/review/status` reports `enabled:true`, `authentication:"none"`,
    `budget.scope="process"` and `budget.resetsOnRestart=true`.
 4. On the existing Site, Builder -> Architecture review -> Connect your review
-   backend: enter that HTTPS URL and the separate review token; trust/connect.
+   backend: enter that HTTPS URL; trust/connect.
 5. Submit a review only intentionally. Preview, Apply and Undo affect the local
    learning graph, never AWS resources.
 
-Pushing GitHub code does not redeploy the Sites frontend. Existing connection
-controls already accept the backend URL; a Sites publish is only needed to show
-new frontend text. The source UI now explains the reset behavior on connection.
+Pushing GitHub code does not redeploy the Sites frontend. The Sites frontend must also receive the updated review panel to remove the
+old token field. The source UI explains the reset behavior on connection.
 
 For rollback, choose a known-good diskless commit. Older disk-backed code will
 require its former storage setup. A deploy/rollback resets memory accounting.

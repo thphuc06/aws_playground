@@ -1,5 +1,5 @@
 # Free compute, no disk. The memory budget resets on restart/deploy.
-# Enter the two secrets privately; review stays disabled if either is missing.
+# Enter the backend OpenAI key privately. Review endpoints have no authentication.
 services:
   - type: web
     name: aws-playground-review
@@ -17,8 +17,6 @@ services:
       - key: REVIEW_ENABLED
         value: 'true'
       - key: OPENAI_API_KEY
-        sync: false
-      - key: REVIEW_ACCESS_TOKEN
         sync: false
       - key: REVIEW_ALLOWED_ORIGINS
         value: https://aws-developer-playground-phuc.pointykayak.chatgpt.site

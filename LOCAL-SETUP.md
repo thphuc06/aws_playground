@@ -13,8 +13,7 @@ npm run build:backend
 ```
 
 If `.env.local` does not exist, copy `backend/.env.example` there. Preserve any
-existing file. Enter your existing `OPENAI_API_KEY` privately and a different
-random `REVIEW_ACCESS_TOKEN` of at least 32 characters. Neither belongs in Git,
+existing file. Enter your existing `OPENAI_API_KEY` privately. It does not belong in Git,
 chat, screenshots or frontend variables. `.env.local` is ignored.
 
 Set `REVIEW_ENABLED=true`, `REVIEW_BUDGET_USD=1`,
@@ -31,18 +30,23 @@ npm run dev
 ```
 
 Open the URL Vite reports (normally http://127.0.0.1:5173). In Builder ->
-Architecture review, enter `http://localhost:8787` and the separate review token,
+Architecture review, enter `http://localhost:8787`,
 explicitly trust/connect, then consent to submitting the synthetic graph.
 Inspect Preview before Apply. Undo is available in the same browser session
 only while the graph has not changed after Apply.
 
-## Budget behavior
+## Public endpoint and budget behavior
+
+No access token is required. Anyone who can reach the backend can request paid
+reviews; CORS is a browser policy, not authentication, and Origin can be forged.
+The process-wide budget and rate limits are shared by all callers.
+
 
 The allowance lives only in process memory. It resets on restart, deployment,
 idle spin-down or a new instance. It is NOT a cumulative $1 or account-wide
 billing cap. One running process is recommended; instances do not share limits.
 Failed/timeout/invalid requests keep their conservative reservation for that
-process's lifetime. Output/body limits, authentication, CORS, one concurrent
+process's lifetime. Output/body limits, CORS, one concurrent
 review, three starts per minute and no automatic retry remain enforced.
 
 ## Optional paid smoke

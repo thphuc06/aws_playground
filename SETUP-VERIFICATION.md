@@ -1,3 +1,17 @@
+# Current update — access-token entry removed (2026-11-01)
+
+The review UI connects using only the backend URL and explicit trust/graph
+consent. The server and live-smoke command no longer require a reviewer token.
+OpenAI credentials remain backend-only. Review endpoints are now public; CORS
+does not authenticate callers. Process-wide reservation, rate/concurrency,
+schema, stale-graph and Preview/Apply/Undo checks remain enforced.
+
+478 fixture/unit tests pass, including anonymous status/review and a UI check
+that no password/token field is rendered. Both typechecks/builds pass. No paid
+OpenAI request was made for this change. Earlier sections below are historical.
+
+---
+
 # Current update — disk requirement removed (2026-11-01)
 
 At the owner's request, this version uses a per-process memory budget. The
