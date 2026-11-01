@@ -1,10 +1,10 @@
 import {fingerprintGraph,previewProposal,applyProposal,undoProposal,validateReviewGraph,type Graph} from '../src/architectureReview';
-/** User-run ONLY. Uses the same public backend and per-process memory budget; never bypasses it. */
+/** User-run ONLY. Uses the same public backend; never bypasses it. */
 export async function smoke(env:Record<string,string|undefined>,args:string[],transport:typeof fetch=fetch){
- if(!args.includes('--live-approved'))throw new Error('No request made. Rerun only with --live-approved after reviewing the configured paid API budget.');
+ if(!args.includes('--live-approved'))throw new Error('No request made. Rerun only with --live-approved after reviewing the paid API usage.');
  const raw=env.REVIEW_BACKEND_URL||'http://localhost:8787';const url=new URL(raw);if(url.origin!==raw||url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(url.hostname)))throw new Error('Use an exact HTTPS backend origin or localhost HTTP.');
  const origin=env.REVIEW_SMOKE_ORIGIN||'http://localhost:5173';const headers={Origin:origin,'X-Architecture-Review':'1','Content-Type':'application/json'};
- const status=await transport(raw+'/api/review/status',{headers,signal:AbortSignal.timeout(10000),redirect:'error'});if(!status.ok)throw new Error('Backend status check failed.');const state=await status.json();if(state.enabled!==true||typeof state.budget?.remainingReservationUsd!=='number'||state.budget.remainingReservationUsd<=0||state.budget.remainingReservationUsd>1)throw new Error('Backend is disabled or its remaining capped budget is invalid.');
+ const status=await transport(raw+'/api/review/status',{headers,signal:AbortSignal.timeout(10000),redirect:'error'});if(!status.ok)throw new Error('Backend status check failed.');const state=await status.json();if(state.enabled!==true)throw new Error('Backend is disabled.');
  const graph:Graph={version:1,nodes:[{id:'smoke_lambda',service:'lambda',label:'Synthetic timeout exercise',position:{x:0,y:0}}],edges:[],configs:{},lambdaConfigs:{smoke_lambda:{timeoutSeconds:3,mockDurationMs:5000}}};
  const response=await transport(raw+'/api/review',{method:'POST',headers,body:JSON.stringify({graph,baseFingerprint:fingerprintGraph(graph),consent:true}),signal:AbortSignal.timeout(45000),redirect:'error'});if(!response.ok)throw new Error('Review request failed; inspect safe backend status. No automatic retry was made.');const result=await response.json();if(typeof result.review?.summary!=='string')throw new Error('Missing structured review.');const proposal=result.review.proposal;
  if(!proposal)return {reviewReceived:true,editsProposed:0,previewAppliedUndone:false,note:'Advice-only response: apply/undo were not exercised on real output.'};

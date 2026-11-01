@@ -336,6 +336,83 @@ export const serviceIcons:Record<string,ServiceIconAsset> = {
     "sourceFile": "Architecture-Service-Icons_07312026/Arch_Storage/48/Arch_Amazon-Simple-Storage-Service_48.svg",
     "kind": "official",
     "sha256": "bb0df5b7ca52da7323888ed588baefa1c68a23b5776f325bc8ec29825c185a31"
+  },
+  "firehose": {
+    "path": "/aws-icons/firehose.svg",
+    "officialName": "Amazon Data Firehose",
+    "sourceFile": "Architecture-Service-Icons_07312026/Arch_Analytics/48/Arch_Amazon-Data-Firehose_48.svg",
+    "kind": "official",
+    "sha256": "8bba0a1b04c3953d6a2dd45326dc5b13117aad63b10367e48a7cce6642e4b180"
+  },
+  "bedrock": {
+    "path": "/aws-icons/bedrock.svg",
+    "officialName": "Amazon Bedrock",
+    "sourceFile": "Architecture-Service-Icons_07312026/Arch_Artificial-Intelligence/48/Arch_Amazon-Bedrock_48.svg",
+    "kind": "official",
+    "sha256": "01c39972d595d848ffc91d31aa6087b033c65279f8416c7c9a6659bc54406182"
+  },
+  "agentcore": {
+    "path": "/aws-icons/agentcore.svg",
+    "officialName": "Amazon Bedrock AgentCore",
+    "sourceFile": "Architecture-Service-Icons_07312026/Arch_Artificial-Intelligence/48/Arch_Amazon-Bedrock-AgentCore_48.svg",
+    "kind": "official",
+    "sha256": "c715fe6dbc4b661c3cb9b57f8d2ea2176218cdf57b8298901c36c808d96b52e8"
+  },
+  "quick": {
+    "path": "/aws-icons/quick.svg",
+    "officialName": "Amazon Quick",
+    "sourceFile": "Architecture-Service-Icons_07312026/Arch_Business-Applications/48/Arch_Amazon-Quick_48.svg",
+    "kind": "official",
+    "sha256": "e225ca66260d8b8333548b3cf7b47adc325284080622aa3e3d3df2028726b722"
+  },
+  "cloudwatch-logs": {
+    "path": "/aws-icons/cloudwatch-logs.svg",
+    "officialName": "Amazon CloudWatch Logs (official resource icon)",
+    "sourceFile": "Resource-Icons_07312026/Res_Management-Governance/Res_Amazon-CloudWatch_Logs_48.svg",
+    "kind": "official",
+    "sha256": "d395fbcdfe2a524b8cb8ea1f157be8f8cb02e29e635607acbfa9644a31ff4e12"
+  },
+  "privatelink": {
+    "path": "/aws-icons/privatelink.svg",
+    "officialName": "AWS PrivateLink",
+    "sourceFile": "Architecture-Service-Icons_07312026/Arch_Networking-Content-Delivery/48/Arch_AWS-PrivateLink_48.svg",
+    "kind": "official",
+    "sha256": "e7573e18201c71158c44dec11251f46894a3d26b895eb4c4e006aa630997db2d"
+  },
+  "acm": {
+    "path": "/aws-icons/acm.svg",
+    "officialName": "AWS Certificate Manager",
+    "sourceFile": "Architecture-Service-Icons_07312026/Arch_Security-Identity/48/Arch_AWS-Certificate-Manager_48.svg",
+    "kind": "official",
+    "sha256": "ceb602bb370f14c8238d717054c32ae5ab2ef12025d1a2215a910234be69972c"
+  },
+  "private-ca": {
+    "path": "/aws-icons/private-ca.svg",
+    "officialName": "AWS Private Certificate Authority",
+    "sourceFile": "Architecture-Service-Icons_07312026/Arch_Security-Identity/48/Arch_AWS-Private-Certificate-Authority_48.svg",
+    "kind": "official",
+    "sha256": "3fbe1cde23507a3516279d9fc833af0c1fc8b7f30ccd50d023856a5ee630004d"
+  },
+  "glacier": {
+    "path": "/aws-icons/glacier.svg",
+    "officialName": "Amazon Simple Storage Service Glacier",
+    "sourceFile": "Architecture-Service-Icons_07312026/Arch_Storage/48/Arch_Amazon-Simple-Storage-Service-Glacier_48.svg",
+    "kind": "official",
+    "sha256": "4195e1b649e95369dec28f81de8fe15918ca241d0d9b075f5e81ea25ace651c5"
+  },
+  "kiro": {
+    "path": "/aws-icons/kiro.svg",
+    "officialName": "Kiro (official product website icon)",
+    "sourceFile": "https://kiro.dev/icon.svg?fe599162bb293ea0",
+    "kind": "official",
+    "sha256": "774cbc1c7ecec8c935a6091595583d7a92fc8289d6f1db3f071c0f50c61c369f"
+  },
+  "sam": {
+    "path": "/aws-icons/sam.svg",
+    "officialName": "AWS SAM generic placeholder (not an AWS icon)",
+    "sourceFile": "App-authored geometric fallback; official package has no SAM-specific asset",
+    "kind": "fallback",
+    "sha256": "38c8e251affc99c1037b06dc2b9d76178e21659c6994ba26f083ddb253610a17"
   }
 };
 export const genericFallbackIcon:ServiceIconAsset = {

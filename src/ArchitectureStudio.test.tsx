@@ -1,0 +1,7 @@
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {it,expect,vi} from 'vitest';
+import ArchitectureStudio,{consumeAssistantStream} from './ArchitectureStudio';
+it('renders three independent destinations and requires consent without a token input',()=>{vi.stubGlobal('localStorage',{getItem:()=>null,setItem:()=>{}});try{const html=renderToStaticMarkup(<ArchitectureStudio Canvas={()=> <div>Canvas fixture</div>}/>);expect(html).toContain('My architecture');expect(html).toContain('AI review');expect(html).toContain('AI proposal');expect(html).toContain('System purpose');expect(html).not.toContain('type="password"');expect(html).toContain('Build AI proposal');}finally{vi.unstubAllGlobals()}});
+it('reads split SSE frames without confusing progress with completion',async()=>{const bytes=new TextEncoder().encode('event: progress\ndata: {"stage":"reading"}\n\nevent: result\ndata: {"ok":true}\n\n');const stream=new ReadableStream({start(c){c.enqueue(bytes.slice(0,23));c.enqueue(bytes.slice(23));c.close()}});const events:string[]=[];await consumeAssistantStream(new Response(stream,{headers:{'Content-Type':'text/event-stream'}}),e=>events.push(e));expect(events).toEqual(['progress','result'])});
+it('does not present a truncated or error stream as a completed proposal',async()=>{for(const text of ['event: progress\ndata: {}\n\n','event: error\ndata: {"reason":"Timeout"}\n\n'])await expect(consumeAssistantStream(new Response(text,{headers:{'Content-Type':'text/event-stream'}}),()=>{})).rejects.toThrow()});

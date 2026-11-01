@@ -1,5 +1,5 @@
 /** Bounded, browser-only teaching model. Never an AWS deployment validator. */
-import {serviceCatalog} from './serviceCatalog';
+import {canvasCatalog as serviceCatalog} from './serviceCatalog';
 export type ServiceType = string;
 export interface BuilderNode { id: string; service: ServiceType; label: string }
 export interface BuilderEdge { id: string; source: string; target: string; label?: string }

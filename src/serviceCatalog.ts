@@ -80,3 +80,6 @@ const groups:Record<string,Row[]>={
  ],
 };
 export const serviceCatalog:CatalogService[]=Object.entries(groups).flatMap(([category,rows])=>rows.map(([id,name,purpose,relevance])=>({id,name,category,purpose,relevance,modeled:['api','lambda','dynamodb','sqs'].includes(id)})));
+import {c03AdditionalServices} from './c03Catalog';
+export const canvasCatalog:CatalogService[]=[...serviceCatalog,...c03AdditionalServices];
+export const c03CanvasCatalog=canvasCatalog.filter(s=>!['appsync','q-developer'].includes(s.id));

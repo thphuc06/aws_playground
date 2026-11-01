@@ -6,8 +6,8 @@ export const c03AddedServiceReferences=['Amazon Data Firehose','Amazon Bedrock',
 export const c03AbsentFromNamedList=['AWS AppSync','Amazon Q Developer'];
 const commonLimits=[
  'AWS calls its in-scope service lists non-exhaustive and subject to change. Being named does not imply every feature is examined; absence alone does not prove exclusion.',
- 'Changing the selected guide does not add runtime capabilities. The existing 47-service canvas and its bounded lessons are not a complete implementation of either exam guide.',
- 'The 11 newly named C03 references are research/theory references only, not newly implemented canvas services or simulators.',
+ 'Changing the selected guide does not add runtime capabilities. The C03 canvas configuration profiles and legacy bounded lessons are study aids, not a complete implementation of either exam guide.',
+ 'The 11 additional C03 entries have architectural configuration profiles; they are not AWS runtime simulators.',
  'Skill IDs are version-specific: matching numbers across C02 and C03 can describe different objectives. Chapter counts and checklist counts do not establish exhaustive exam coverage.',
 ];
 export const examVersions:ExamVersion[]=[
@@ -17,7 +17,7 @@ export const examVersions:ExamVersion[]=[
   'New dedicated AI-security task 2.3 covers access, privacy, input/output controls, agent tool authorization and isolation, human approval, and sensitive telemetry.',
   'AI-assisted development, managed AI integration, AI-supported tests, CI/CD, troubleshooting, and optimization are explicit objectives. Presigned access and container build/deployment receive explicit treatment.',
   'Unit-testing objectives move into Domain 3; Lambda tuning moves into Domain 4; serialization moves to application-code objectives. Testing tasks are consolidated, so IDs must not be copied across versions.',
-  `The named-service list adds: ${c03AddedServiceReferences.join('; ')}. These are references, not added app simulators.`,
+  `The named-service list adds: ${c03AddedServiceReferences.join('; ')}. These have canvas configuration profiles, not AWS runtime simulators.`,
   'AppSync and Q Developer are absent from the reviewed C03 named-service list. That non-exhaustive list alone does not establish that either service is forbidden or impossible to encounter.',
   'After normalizing expanded names and acronyms, the named lists contain 47 C02 entries and 56 C03 entries: 11 additions and 2 omissions.',
  ],limitations:[...commonLimits,'The target role excludes designing foundation-model selection, prompt/RAG architectures, and AI safety/governance frameworks; learning to apply existing controls must not be presented as exhaustive AI-system design coverage.']},

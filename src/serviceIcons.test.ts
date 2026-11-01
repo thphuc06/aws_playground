@@ -1,12 +1,12 @@
 /// <reference types="vite/client" />
 import {describe,it,expect} from 'vitest';
-import {serviceCatalog} from './serviceCatalog';
+import {canvasCatalog as serviceCatalog} from './serviceCatalog';
 import {serviceIcons,genericFallbackIcon,iconSource} from './serviceIcons';
 
 const assets=import.meta.glob('../public/aws-icons/*.svg',{query:'?raw',import:'default',eager:true}) as Record<string,string>;
 
 describe('local AWS architecture artwork',()=>{
- it('covers each of the 47 catalog IDs exactly once',()=>{expect(Object.keys(serviceIcons).sort()).toEqual(serviceCatalog.map(s=>s.id).sort());expect(Object.keys(serviceIcons)).toHaveLength(47);expect(Object.values(serviceIcons).every(s=>s.kind==='official')).toBe(true)});
+ it('covers every current canvas catalog ID exactly once',()=>{expect(Object.keys(serviceIcons).sort()).toEqual(serviceCatalog.map(s=>s.id).sort());expect(Object.keys(serviceIcons)).toHaveLength(serviceCatalog.length);for(const icon of Object.values(serviceIcons)){if(icon.kind==='fallback')expect(icon.officialName).toContain('not an AWS icon')}});
  it('provides local original SVG artwork with matching hashes and no executable/external content',async()=>{
   for(const [id,icon] of Object.entries(serviceIcons)){
    expect(icon.path).toBe(`/aws-icons/${id}.svg`);

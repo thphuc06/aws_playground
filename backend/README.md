@@ -1,42 +1,19 @@
-# Architecture review backend
+# Backend API
 
-Node 22, no disk or ledger initialization. See [local setup](../LOCAL-SETUP.md)
-and [Render setup](../DEPLOY-RENDER.md). Install/build from repository root because
-the backend imports shared graph validation and learning references from `src/`.
+Build at repository root with npm run build:backend. Run npm run start:backend
+on Render or npm run start:backend:local with private .env.local locally.
 
-```sh
-npm ci
-npm run build:backend
-npm run start:backend:local
-```
+- GET /health: liveness.
+- GET /api/review/status: exact allowed Origin required; returns model/readiness,
+  no-auth/no-USD-cap status and architectureAssistant capability1.
+- POST /api/architecture-assistant: JSON + X-Architecture-Review:1 + allowed Origin.
+  Body: mode(review/design), graph, baseFingerprint, purpose, priority,
+  protectedNodeIds and consent:true. Request body capped256KiB. Returns SSE
+  progress, tool_error, usage, result or error. No result means no completed draft.
+- POST /api/review: retained legacy review compatibility contract.
 
-The local script loads ignored `.env.local`; Render uses `npm run start:backend`
-with its environment settings. OpenAI keys stay server-side. No reviewer token
-is required. Anyone reaching the URL can request paid reviews. Keep the exact
-origin allowlist, but note CORS is not authentication; non-browser clients can
-forge Origin. Budget, concurrency and rate limits are shared by all callers.
-
-## API and limits
-
-- `GET /health`: process liveness only.
-- `GET /api/review/status`: allowed Origin required, no bearer token; reports
-  enabled/reason, authentication:none, limits, and budget with `scope:process`, `resetsOnRestart:true`.
-- `POST /api/review`: allowed Origin, JSON content type, `X-Architecture-Review:1`,
-  body `{graph,baseFingerprint,consent:true}`. Result contains guarded proposal
-  or advice only. Safe errors do not expose raw provider responses.
-- Model fixed to `gpt-5.4-mini-2026-03-17`; strict Responses schema, no tools,
-  `store:false`, 1,600 output tokens, no automatic retries.
-- 64 KiB request cap, 256 KiB provider response cap, 35-second provider timeout,
-  10-second body-read deadline, one in-flight review, three starts/minute.
-- Conservative reservations use $2/M input and $10/M output with byte-based
-  input estimate plus framing. Never refund uncertain results during a process.
-- **Memory allowance resets on restart/deploy/spin-down and is per instance.
-  It is not cumulative or account-wide billing enforcement.**
-
-Labels/configs are untrusted data under fixed instructions. Server and client
-validate edits, reject stale snapshots and require explicit Preview/Apply.
-Undo protects newer edits and is session-only. No real AWS operation executes.
-
-`npm test` uses fixtures and consumes no API credits. `npm run smoke:live` is an
-explicit, separately authorized paid synthetic review through this backend. It
-checks JSON roundtrip and Undo in memory, not browser localStorage E2E.
+See ../AI-REVIEW.md for tools, limits and privacy. Server closes/aborts work on
+disconnect, cancellation or deadline. A single gate covers both POST endpoints.
+Sources and graph are validated; tool errors may be repaired within the bounded
+loop, but provider failures are never automatically retried. Unknown model access
+does not fall back. The server holds no durable graph or budget database.

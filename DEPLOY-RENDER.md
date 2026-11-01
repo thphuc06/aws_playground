@@ -1,82 +1,58 @@
-# Render deployment — Free compute, no disk
+# Render: DVA-C03 architecture assistant
 
-Repository: https://github.com/thphuc06/aws_playground, branch `main`.
-Frontend stays at https://aws-developer-playground-phuc.pointykayak.chatgpt.site.
-Sync the existing Blueprint with the root `render.yaml`. No persistent disk,
-ledger initialization, migration or WSL setup is required.
+Repository: https://github.com/thphuc06/aws_playground (`main`). Frontend remains
+https://aws-developer-playground-phuc.pointykayak.chatgpt.site.
 
-| Setting | Value |
+## Runtime and environment
+
+Use Node 22, Free compute, repository root (Root Directory empty),
+build `npm ci --include=dev && npm run build:backend`, start
+`npm run start:backend`, and health `/health`. Render supplies PORT.
+Shared source in `src/` is required by the backend build.
+
+| Environment | Value/action |
 | --- | --- |
-| Runtime | Node 22 |
-| Plan | Free |
-| Root Directory | Empty (repository root) |
-| Build | `npm ci --include=dev && npm run build:backend` |
-| Start | `npm run start:backend` |
-| Health | `/health` |
-| Auto Deploy | After CI Checks Pass (`autoDeployTrigger: checksPass`) |
+| NODE_VERSION | 22 |
+| OPENAI_API_KEY | Existing valid key, backend only |
+| REVIEW_MODEL | **gpt-6.1-sol** |
+| REVIEW_ENABLED | true |
+| REVIEW_ALLOWED_ORIGINS | https://aws-developer-playground-phuc.pointykayak.chatgpt.site |
+| REVIEW_BUDGET_USD | Remove; ignored by the new version |
+| REVIEW_ACCESS_TOKEN | Remove; ignored |
+| REVIEW_LEDGER_PATH | Remove; ignored |
+| REVIEW_PERSISTENT_DISK_CONFIRMED | Remove; ignored |
 
-The build needs shared `src/` modules, so do not set root to `backend/`.
-Render supplies `PORT`; the backend binds `0.0.0.0`. CI includes fixture tests,
-both typechecks/builds and sensitive-file checks, with an always-run required
-job that fails unless all required verification succeeded. No deploy hook or
-paid API test runs in CI.
+No additional search key is needed; official-document search uses OpenAI's
+built-in web_search. The Blueprint keeps the OpenAI key `sync:false`; add/keep
+it privately in an existing service's Environment settings. Do not create a new
+service or reset account billing as part of this update.
 
-## Environment: six values
+The service has no caller authentication and no USD cap by the owner's choice.
+Anyone reaching it can consume API usage; CORS is not authentication. One shared
+workflow gate covers both new and legacy endpoints: one active request and
+three starts/minute. Free compute can sleep and restart; limits are in memory.
+No AWS resources are created by assistant tools.
 
-| Variable | Value |
-| --- | --- |
-| `NODE_VERSION` | `22` |
-| `OPENAI_API_KEY` | Your existing backend-only key |
-| `REVIEW_ALLOWED_ORIGINS` | `https://aws-developer-playground-phuc.pointykayak.chatgpt.site` |
-| `REVIEW_MODEL` | `gpt-5.4-mini-2026-03-17` |
-| `REVIEW_BUDGET_USD` | `1`, per-process reservation allowance |
-| `REVIEW_ENABLED` | `true` |
+## Deploy and verify
 
-The Blueprint uses `sync:false` for the OpenAI key. On an existing service, enter/keep
-it directly in Environment; do not assume Blueprint sync creates missing
-secret values. Remove obsolete `REVIEW_ACCESS_TOKEN`, `REVIEW_LEDGER_PATH` and
-`REVIEW_PERSISTENT_DISK_CONFIRMED` fields if desired; this code ignores them.
-Missing credentials or invalid budget still disable review. Do not put the
-OpenAI key in frontend `VITE_` variables or anywhere in the browser UI.
+Sync the existing Blueprint after the GitHub CI Required checks job succeeds.
+Auto-deploy is After CI Checks Pass; if that deploy is already running, do not
+trigger a second deploy. `/health` only establishes process liveness.
+With the allowed Site Origin, `/api/review/status` must return enabled:true,
+model gpt-6.1-sol, capabilities.architectureAssistant=1 and streaming:true.
+Unknown Origin must return403. Status does not require an access token.
 
-Review endpoints have no user authentication. Anyone knowing the URL can use
-the owner's API allowance. CORS does not stop clients that forge an allowed
-Origin. The budget, concurrency limit and rate limit are process-wide.
+The new frontend detects the capability and asks for a Render update when it is
+missing. Its new workflow POSTs to `/api/architecture-assistant` and consumes SSE
+progress/result/error events. `/api/review` remains for compatibility; it is not
+the new design workflow. A successful Git push does not prove Render deployed.
 
-## What changed about the budget
+## Rollback
 
-**The counter is in memory and resets whenever Render restarts, redeploys or
-wakes a new process after idle spin-down. It is not a cumulative $1 billing cap.**
-Each instance has its own allowance. Failed/ambiguous calls keep their reservation
-only for that process's lifetime. Use one instance and monitor provider usage.
-The previous durable local ledger is preserved as historical evidence but is
-not read, migrated or used by this version. No additional paid tests were run
-for this change; the earlier testing authorization was not reset.
+Roll back frontend and backend to compatible commits. Existing saved workspace
+data should be retained/exported, never deleted to resolve a compatibility issue.
+The legacy graph key remains intact. Older disk-required revisions need their
+original storage setup; prefer rollback to a known diskless version.
 
-Free Render services can sleep while idle and have bandwidth/build limits.
-Free compute is not a promise of free OpenAI usage or no Render usage overages.
-
-## Verify and connect
-
-After Render reports Live, use its actual HTTPS backend URL:
-
-1. `/health` returns 200 (liveness only).
-2. Status with the allowed Origin and no token returns 200; foreign Origin 403.
-3. `/api/review/status` reports `enabled:true`, `authentication:"none"`,
-   `budget.scope="process"` and `budget.resetsOnRestart=true`.
-4. On the existing Site, Builder -> Architecture review -> Connect your review
-   backend: enter that HTTPS URL; trust/connect.
-5. Submit a review only intentionally. Preview, Apply and Undo affect the local
-   learning graph, never AWS resources.
-
-Pushing GitHub code does not redeploy the Sites frontend. The Sites frontend must also receive the updated review panel to remove the
-old token field. The source UI explains the reset behavior on connection.
-
-For rollback, choose a known-good diskless commit. Older disk-backed code will
-require its former storage setup. A deploy/rollback resets memory accounting.
-No production URL or deployment success is inferred from a successful push.
-
-Official references checked 2026-11-01:
-- https://render.com/docs/blueprint-spec
-- https://render.com/docs/deploys
-- https://render.com/docs/free
+References: https://render.com/docs/blueprint-spec,
+https://render.com/docs/deploys, https://render.com/docs/free.

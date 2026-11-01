@@ -1,39 +1,52 @@
-# AI architecture review
+# DVA-C03 architecture assistant
 
-The frontend remains a private static ChatGPT Site. The optional Node backend in `backend/` runs locally or on the owner's Render service. It is disabled until the owner privately configures an existing OpenAI key, an allowed frontend origin and the per-process memory allowance. See **BACKEND-SETUP.md** for exact setup and verification commands.
+My architecture, AI review and AI proposal are separate views over a versioned
+local workspace. Reviews are read-only. Design tools edit an isolated copy;
+only explicit Preview/Use this proposal adopts it. Protected node IDs and
+service types cannot be removed/replaced by the agent. The UI preserves compute
+and primary data-store nodes by default. Goal/priority and protected nodes are
+sent with an immutable graph snapshot. A changed original makes adoption stale.
 
-## Boundaries
+The 58-profile union covers56 C03 entries plus AppSync/Q Developer compatibility.
+326 fields describe DVA-level architectural intent; omitted values are unknown.
+This is not a complete AWS Console schema. Legacy exercise settings remain
+separate and do not prove production permissions, network or handler behavior.
+Unsupported simulator relationships do not make an architecture invalid in AWS.
 
-- The OpenAI key belongs only in the backend's private `.env.local` or Render secret environment. Never enter it in the frontend. No key or live backend is bundled.
-- At the owner's request, reviewer authentication and the access-token field were removed. Anyone who can reach the backend can request paid reviews. CORS restricts browsers but clients can forge Origin; it is not authentication. Limits apply to the process, not a user. The OpenAI key remains server-only.
-- A user-entered backend origin is public configuration. Only connect to a backend you control. Graph submission is explicit; no background review. Labels, sample events and settings are transmitted with the graph, so use fictional study data and never enter secrets or real production payloads.
-- The provider receives a bounded structured graph, relevant source-reviewed learning context and fixed instructions. User text is untrusted data. No AWS credentials, deployments, code execution, provider tools or arbitrary URL retrieval are involved.
-- Model responses are untrusted proposals. Strict local and server-side validators reject unknown services, fields, malformed configs, dangling/duplicate relationships and unsafe object keys. Model advice is not a comprehensive AWS security audit or proof of best practice.
-- Preview shows changes and deterministic before/after findings. Apply is explicit and atomic. A stale snapshot is rejected; Undo only restores while the canvas still matches the applied result, avoiding loss of newer edits. Permission checkboxes remain learning assertions, never actual IAM policies.
-- Existing four-integration walkthrough and 47 local lessons remain bounded. Advice does not magically add execution support for other relationships or new C03 services.
+## Agent and references
 
-## Provider and budget
+GPT-6.1 Sol uses the Responses API, medium reasoning, store:false and strict
+function definitions. Tools are get_service_schema, get_relevant_references,
+search_aws_docs, edit_draft, validate_draft and finish_draft. Tool arguments,
+draft edits and final results are validated on the server; the client validates
+the returned graph again. No tool runs shell, deploys AWS or retrieves arbitrary
+model-supplied URLs. Retrieved content and graph strings are untrusted data.
 
-Only the server-owned allowlisted model is used; the browser cannot select models, endpoints, tools or token limits. Requests use structured outputs and `store:false`, bounded time/output and no automatic retries. `store:false` does not promise zero provider retention.
+Schemas return registered curated source IDs; references are selected by service
+and relation rather than dumping every teaching link. Live search is restricted
+to AWS official domains. Kiro's pre-reviewed official product source kiro.dev
+is permitted as a curated reference. Findings can only cite registered source
+IDs; displayed sources distinguish curated from retrieved-this-run evidence.
+An available link is not proof that every claim in it was checked.
 
-Official model reference checked 2026-11-01: `gpt-5.4-mini-2026-03-17`, standard
-text prices $0.75/M input and $4.50/M output. The backend reserves conservatively
-before every attempt, retaining failed/uncertain calls in the current process.
+Each workflow is bounded by8 Responses calls (including research subcalls),
+24 function calls,2 searches,8192 output tokens per response and300 seconds.
+The final available response is reserved for finish, which independently
+validates the graph. Invalid edits are atomic failures and may be repaired
+within these bounds. Limit/timeout/cancel retains the prior saved proposal.
 
-At the owner's request, the disk requirement was removed. The allowance now
-lives in memory and **resets on restart, deploy, idle spin-down or a new instance**.
-`REVIEW_BUDGET_USD` is not a cumulative $1 or account-wide billing cap. No file
-initialization or disk migration is needed; old local accounting files are left
-untouched as historical records. No paid calls were made for this change.
+The owner explicitly removed access-token authentication, disk persistence and
+USD caps. Anyone who can reach the backend can request billable work; CORS does
+not authenticate them. Process-wide concurrency/rate limits remain. Usage is
+summed across model/research calls; the displayed dollar figure is a rough
+standard-rate estimate, not an invoice. Network/incomplete results are marked
+uncertain rather than assumed free. No automatic provider retry.
 
-The earlier local live test made two real requests: one invalid proposal was
-rejected; the next passed Preview/Apply/JSON roundtrip/Undo on synthetic data.
-This does not prove all future proposals will be valid or verify browser E2E.
+No fallback model is silently substituted if Sol is unavailable. Secrets stay
+in backend environment settings; no API key is sent to the browser or Git.
+Browser consent explicitly covers graph submission and documentation research.
 
-## Official references
-
-- https://developers.openai.com/api/docs/models/gpt-5.4-mini
-- https://developers.openai.com/api/docs/guides/structured-outputs
-- https://developers.openai.com/api/docs/guides/migrate-to-responses
-
-See BACKEND-SETUP.md for Render's official deployment references and explicit test limitations.
+Official references reviewed2026-11-01:
+- https://developers.openai.com/api/docs/models/gpt-6.1-sol
+- https://developers.openai.com/api/docs/guides/function-calling
+- https://developers.openai.com/api/docs/guides/tools-web-search

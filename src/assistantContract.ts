@@ -1,0 +1,7 @@
+import type {Graph} from './architectureReview';
+export const ASSISTANT_VERSION=1;
+export type Priority='balanced'|'simplicity'|'cost'|'reliability';
+export interface AssistantSource {id:string;title:string;url:string;kind:'curated'|'live';verified:string}
+export interface AssistantFinding {nodeIds:string[];edgeIds:string[];severity:'info'|'warning'|'error';title:string;detail:string;sourceIds:string[]}
+export interface AssistantResult {mode:'review'|'design';baseFingerprint:string;summary:string;assumptions:string[];findings:AssistantFinding[];sources:AssistantSource[];draft:Graph|null;usage:{inputTokens:number;outputTokens:number;responses:number;searches:number;estimatedUsd:number;incomplete:boolean}}
+export interface AssistantRequest {mode:'review'|'design';graph:Graph;baseFingerprint:string;purpose:string;priority:Priority;protectedNodeIds:string[];consent:true}

@@ -1,0 +1,10 @@
+import {describe,it,expect} from 'vitest';
+import {canvasCatalog,c03CanvasCatalog} from './serviceCatalog';
+import {architectureProfilesData} from './architectureProfilesData';
+import {validateArchitectureSettings} from './architectureRegistry';
+import {validateReviewGraph} from './architectureReview';
+describe('DVA-C03 architectural configuration registry',()=>{
+ it('covers the complete current C03 catalog and retains legacy services',()=>{expect(canvasCatalog).toHaveLength(58);expect(c03CanvasCatalog).toHaveLength(56);expect(Object.keys(architectureProfilesData).sort()).toEqual(canvasCatalog.map(s=>s.id).sort());for(const p of Object.values(architectureProfilesData)){expect(p.fields.length).toBeGreaterThanOrEqual(4);expect(p.sources.length).toBeGreaterThan(0);expect(p.objectives.every(x=>/^[1-4]\.[1-3]$/.test(x))).toBe(true)}});
+ it('validates real field types/options/ranges for every service and keeps unknowns omitted',()=>{for(const [id,p]of Object.entries(architectureProfilesData)){expect(validateArchitectureSettings(id,{})).toEqual([]);const values:Record<string,unknown>={};for(const f of p.fields){values[f.key]=f.kind==='select'?f.options![0]:f.kind==='boolean'?true:f.kind==='number'?f.min??0:'Educational design intention';expect(validateArchitectureSettings(id,{[f.key]:null}).length).toBeGreaterThan(0);}expect(validateArchitectureSettings(id,values)).toEqual([]);expect(validateArchitectureSettings(id,{inventedField:true})).not.toEqual([])}});
+ it('keeps EC2 independent of DynamoDB and permits API HTTP/private integration choices',()=>{const p=architectureProfilesData.api;expect(p.fields.some(f=>f.options?.includes('http')&&f.options.includes('private'))).toBe(true);expect(architectureProfilesData.ec2.purpose).not.toContain('PutItem');const graph={version:1,nodes:[{id:'a',service:'api',label:'API',position:{x:0,y:0}},{id:'b',service:'ec2',label:'Web',position:{x:1,y:0}}],edges:[{id:'e',source:'a',target:'b'}],configs:{},architecture:{nodes:{a:{},b:{}},relationships:{e:'request'}}};expect(validateReviewGraph(graph).ok).toBe(true)});
+});

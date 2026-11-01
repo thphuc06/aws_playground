@@ -1,7 +1,6 @@
-# Local setup — no disk required
+# Local DVA-C03 assistant setup
 
-Use Node 22 on Windows, Linux or macOS. WSL is optional. The project is at
-`C:\HCMUS\DVA\aws_playground` on the owner's machine.
+Use Node 22. From the repository root:
 
 ```sh
 npm ci
@@ -12,48 +11,35 @@ npm run build
 npm run build:backend
 ```
 
-If `.env.local` does not exist, copy `backend/.env.example` there. Preserve any
-existing file. Enter your existing `OPENAI_API_KEY` privately. It does not belong in Git,
-chat, screenshots or frontend variables. `.env.local` is ignored.
-
-Set `REVIEW_ENABLED=true`, `REVIEW_BUDGET_USD=1`,
-`REVIEW_MODEL=gpt-5.4-mini-2026-03-17`, `PORT=8787`, and
-`REVIEW_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173`.
-No ledger path, disk assertion or initialization command is needed. Old
-`REVIEW_LEDGER_PATH` and `REVIEW_PERSISTENT_DISK_CONFIRMED` values are ignored.
-
-Start the backend, then the frontend in a second terminal:
+Copy `backend/.env.example` to `.env.local` only if the file does not exist.
+Enter your OpenAI key privately. Keep `.env.local` ignored and never print it.
+Set REVIEW_MODEL=gpt-6.1-sol, REVIEW_ENABLED=true, PORT=8787 and
+REVIEW_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173.
+There is no access token, disk setup or USD budget variable.
 
 ```sh
 npm run start:backend:local
-npm run dev
 ```
 
-Open the URL Vite reports (normally http://127.0.0.1:5173). In Builder ->
-Architecture review, enter `http://localhost:8787`,
-explicitly trust/connect, then consent to submitting the synthetic graph.
-Inspect Preview before Apply. Undo is available in the same browser session
-only while the graph has not changed after Apply.
+In another terminal, `npm run dev`. Open the reported local URL. Connect the
+backend using http://localhost:8787, enter System purpose and explicitly consent.
+Use Review architecture for read-only assessment or Build AI proposal for an
+independent editable canvas. Review assumptions, sources and exact diff before
+Use this proposal. Undo is session-only and blocked after a newer original edit.
 
-## Public endpoint and budget behavior
+Both graphs, purpose and reports persist separately under
+`aws-playground-workspace-v2`. The legacy graph key remains as a migration backup.
+Invalid saved data is not overwritten. Storage failures are shown to the user.
 
-No access token is required. Anyone who can reach the backend can request paid
-reviews; CORS is a browser policy, not authentication, and Origin can be forged.
-The process-wide budget and rate limits are shared by all callers.
+## Optional paid checks
 
+Only with explicit authorization: `npm run smoke:assistant` runs three synthetic
+design workflows through the backend. Direct command also accepts
+`--scenario=api-ec2`, `--scenario=serverless-queue`, or `--scenario=c03-ai`.
+Evidence is saved under ignored `backend/data/`. Do not interpret JSON roundtrip
+checks as browser-localStorage E2E. The old `smoke:live` checks only the retained
+legacy endpoint and is not the primary assistant test.
 
-The allowance lives only in process memory. It resets on restart, deployment,
-idle spin-down or a new instance. It is NOT a cumulative $1 or account-wide
-billing cap. One running process is recommended; instances do not share limits.
-Failed/timeout/invalid requests keep their conservative reservation for that
-process's lifetime. Output/body limits, CORS, one concurrent
-review, three starts per minute and no automatic retry remain enforced.
-
-## Optional paid smoke
-
-Only with owner authorization, `npm run smoke:live` sends one synthetic review
-through the running application backend. Configure `REVIEW_BACKEND_URL` and
-`REVIEW_SMOKE_ORIGIN` in `.env.local`. It validates Preview/Apply/JSON roundtrip/
-Undo; advice-only responses are reported as not exercising Apply/Undo.
-This is not browser E2E. Restarting does not authorize more paid tests.
-No paid calls were made while implementing the diskless change.
+No dollar cap exists. Technical limits apply per workflow and process, and
+provider errors do not trigger automatic retries. Incomplete usage or transport
+failures have an uncertain billing outcome; do not assume they are free.

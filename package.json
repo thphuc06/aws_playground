@@ -16,7 +16,8 @@
     "typecheck:backend": "tsc -p backend/tsconfig.json",
     "check:secrets": "node scripts/check-sensitive-files.mjs",
     "start:backend:local": "node --env-file=.env.local backend/dist/server.mjs",
-    "smoke:live": "node --env-file=.env.local backend/dist/live-smoke.mjs --live-approved"
+    "smoke:live": "node --env-file=.env.local backend/dist/live-smoke.mjs --live-approved",
+    "smoke:assistant": "node --env-file=.env.local backend/dist/live-assistant-smoke.mjs --live-approved"
   },
   "dependencies": {
     "react": "^19.0.0",

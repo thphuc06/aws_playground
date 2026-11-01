@@ -1,3 +1,21 @@
+# Current DVA-C03 assistant update
+
+The Builder now has **My architecture**, **AI review**, and **AI proposal**.
+Use System purpose, priority and protected services to guide GPT-6.1 Sol.
+An isolated editable draft supports Preview/adoption/Undo; both diagrams persist
+independently. Architecture settings are separate from legacy simulation lessons.
+
+The canvas includes56 C03 services plus2 legacy IDs. See
+[DVA-ARCHITECTURE-COVERAGE.md](DVA-ARCHITECTURE-COVERAGE.md) for58 profiles and326
+fields, and [ICONS.md](ICONS.md) for official artwork and the explicit SAM fallback.
+The OpenAI key stays backend-side. No disk, reviewer token or USD cap is used.
+See LOCAL-SETUP.md, DEPLOY-RENDER.md and ASSISTANT-VERIFICATION.md for current setup.
+
+Earlier milestone descriptions below document the original learning lessons;
+their47-service and original-provider notes do not describe the new assistant.
+
+---
+
 # AWS Developer Playground
 
 A private, browser-only AWS Developer Associate learning workspace: an editable architecture canvas, 47-entry C02 service catalog, 47 source-reviewed study briefs and bounded configuration lessons, plus a separately versioned C02/C03 theory library. It is not a complete exam course or a production AWS design validator.

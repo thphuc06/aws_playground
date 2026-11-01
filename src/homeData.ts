@@ -6,7 +6,7 @@ export const homeScoring={minimum:720,scale:[100,1000],scored:50,unscored:15,tot
 export interface HomeService {id:string;name:string;category:string;canvas:boolean}
 const added:HomeService[]=[
  ['firehose','Amazon Data Firehose','Analytics'],['bedrock','Amazon Bedrock','Machine Learning and Artificial Intelligence'],['agentcore','Amazon Bedrock AgentCore','Machine Learning and Artificial Intelligence'],['quick','Amazon Quick','Machine Learning and Artificial Intelligence'],['kiro','Kiro','Machine Learning and Artificial Intelligence'],['cloudwatch-logs','Amazon CloudWatch Logs','Management and Governance'],['sam','AWS SAM','Management and Governance'],['privatelink','AWS PrivateLink','Networking and Content Delivery'],['acm','AWS Certificate Manager (ACM)','Security, Identity, and Compliance'],['private-ca','AWS Private CA','Security, Identity, and Compliance'],['glacier','Amazon S3 Glacier','Storage']
-].map(([id,name,category])=>({id,name,category,canvas:false}));
+].map(([id,name,category])=>({id,name,category,canvas:true}));
 export const homeServices:Record<ExamVersionId,HomeService[]>={
  'DVA-C02':serviceCatalog.map(s=>({id:s.id,name:s.name,category:s.category,canvas:true})),
  'DVA-C03':[...serviceCatalog.filter(s=>!['appsync','q-developer'].includes(s.id)).map(s=>({id:s.id,name:s.name,category:s.category,canvas:true})),...added]
