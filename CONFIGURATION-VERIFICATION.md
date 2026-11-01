@@ -72,8 +72,11 @@ Old reports can describe an older snapshot and must be rerun before adoption.
 - Real HTTP/SSE smoke tests use an injected local provider fixture: they check
   capability negotiation, CORS and a typed configuration roundtrip without paid
   OpenAI calls or AWS requests. No new live Sol/AWS validation is claimed.
-- Full merged test/typecheck/build results and deployment commits are recorded in
-  the final handoff. Vite's existing main-bundle size advisory remains; the editor
+- Merged with theory commit cfa310c653597c087325b731c3a7da98632155d3
+  (cherry-picked as185a5dc):550 tests passed across36 files. Both TypeScript
+  checks, frontend/backend production builds, HTTP/SSE smoke and the sensitive-file
+  check passed. npm audit --omit=dev reported0 vulnerabilities.
+  Vite's existing main-bundle size advisory remains; the editor
   is lazy-loaded. Source URL reachability is not runtime feature verification.
 
 ## Deployment

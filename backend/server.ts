@@ -13,4 +13,4 @@ export async function start(options:{transport?:Transport}={}){const env=process
  const stop=()=>server.close(()=>process.exit(0));process.on('SIGTERM',stop);process.on('SIGINT',stop);return server;
 }
 // Bundled as a standalone entry; never imported by the browser.
-if(basename(process.argv[1]||'')==='server.mjs')start().catch(()=>{console.error('Backend startup failed. Check non-secret configuration and ledger state.');process.exitCode=1});
+if(basename(process.argv[1]||'')==='server.mjs')start().catch(()=>{console.error('Backend startup failed. Check non-secret runtime configuration.');process.exitCode=1});
