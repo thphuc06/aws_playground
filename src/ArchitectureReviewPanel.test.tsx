@@ -1,7 +1,7 @@
 import React from 'react';
 import {describe,it,expect,vi} from 'vitest';
 import {renderToStaticMarkup} from 'react-dom/server';
-import ArchitectureReviewPanel,{reviewBackendOrigin,boundedReviewText,reviewProposalPayload} from './ArchitectureReviewPanel';
+import ArchitectureReviewPanel,{reviewBackendOrigin,boundedReviewText,reviewProposalPayload,savedReviewBackend,defaultReviewBackend,reviewAuthentication,reviewAuthHeaders} from './ArchitectureReviewPanel';
 describe('review connection safeguards',()=>{
  it('accepts HTTPS origins and local development only',()=>{expect(reviewBackendOrigin('https://example.onrender.com/')).toBe('https://example.onrender.com');expect(reviewBackendOrigin('http://localhost:8080')).toBe('http://localhost:8080');expect(reviewBackendOrigin('http://127.0.0.1:8080')).toBe('http://127.0.0.1:8080')});
  it('rejects insecure remote, credential-bearing and path/query URLs',()=>{for(const url of ['http://example.com','javascript:alert(1)','https://user:secret@example.com','https://example.com/api','https://example.com?token=secret','https://example.com#token','/relative'])expect(()=>reviewBackendOrigin(url)).toThrow()});
@@ -9,4 +9,8 @@ describe('review connection safeguards',()=>{
  it('bounds streamed responses before fully buffering a malicious body',async()=>{let canceled=false;const stream=new ReadableStream<Uint8Array>({pull(controller){controller.enqueue(new Uint8Array(100))},cancel(){canceled=true}});await expect(boundedReviewText(new Response(stream),150)).rejects.toThrow('size limit');expect(canceled).toBe(true)});
  it('decodes a bounded response and rejects oversized declared length',async()=>{expect(await boundedReviewText(new Response('{"ok":true}'))).toBe('{"ok":true}');await expect(boundedReviewText(new Response('small',{headers:{'content-length':'300000'}}))).rejects.toThrow('size limit')});
  it('preserves explicit advice-only null instead of falling back or rejecting it',()=>{expect(reviewProposalPayload({review:{summary:'Advice only',findings:[],proposal:null}})).toBeNull();expect(reviewProposalPayload({review:{proposal:null},proposal:{operations:[]}})).toBeNull();expect(()=>reviewProposalPayload({review:{summary:'Missing proposal'}})).toThrow('missing a proposal');});
+ it('defaults to the public deployment but preserves a valid saved origin',()=>{expect(savedReviewBackend(null)).toBe(defaultReviewBackend);expect(savedReviewBackend({version:1,url:'https://custom.example/'})).toBe('https://custom.example');expect(savedReviewBackend({version:1,url:'http://unsafe.example'})).toBe(defaultReviewBackend);expect(savedReviewBackend({version:1,url:'https://user:secret@example.com'})).toBe(defaultReviewBackend)});
+ it('requires explicit public status and fails closed for unauthenticated legacy status',()=>{expect(reviewAuthentication({authentication:'none'},'')).toBe('public');expect(()=>reviewAuthentication({},'')).toThrow('access token');expect(reviewAuthentication({},'backend-only-token')).toBe('protected');expect(()=>reviewAuthentication({authentication:'unknown'},'backend-only-token')).toThrow('Unsupported')});
+ it('never sends a stale bearer token in confirmed public mode',()=>{expect(reviewAuthHeaders('public','stale-token')).toEqual({});expect(reviewAuthHeaders('protected','backend-only-token')).toEqual({Authorization:'Bearer backend-only-token'});expect(()=>reviewAuthHeaders('protected','')).toThrow();expect(()=>reviewAuthHeaders('protected','sk-not-a-backend-token')).toThrow('not an OpenAI')});
+
 });
