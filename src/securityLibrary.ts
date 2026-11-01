@@ -1,0 +1,18 @@
+import {securityQuotaIssues} from './policyQuotaChecks';
+import {managedPolicySnapshots} from './managedPolicySnapshots';
+import {validatePolicyDocument} from './policyEngine';
+import type {SecurityLibrary} from './configurationTypes';
+const id=(v:unknown)=>typeof v==='string'&&/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(v)&&!['constructor','prototype','__proto__'].includes(v);
+export function validateSecurityLibrary(value:unknown):string[]{
+ if(!value||typeof value!=='object'||Array.isArray(value))return ['Invalid security library.'];
+ const v=value as SecurityLibrary;const errors:string[]=[];
+ if(v.version!==1||!Array.isArray(v.policies)||!Array.isArray(v.roles)||v.policies.length>100||v.roles.length>100)return ['Invalid security library version or app item limit exceeded.'];
+ if(Object.keys(v).some(k=>!['version','roles','policies'].includes(k)))errors.push('Unknown security library field.');
+ const policyIds=new Set<string>(),roleIds=new Set<string>();
+ for(const p of v.policies){if(!p||!id(p.id)||policyIds.has(p.id)||typeof p.name!=='string'||p.name.length>160||!['identity','trust','resource','kms','endpoint','session','boundary'].includes(p.kind)||typeof p.document!=='string'){errors.push('Invalid or duplicate policy.');continue;}if(Object.keys(p).some(k=>!['id','name','kind','document','attachment','managedPolicyId','source'].includes(k)))errors.push('Unknown policy metadata.');if(p.attachment!==undefined&&!['inline','customer-managed','aws-managed'].includes(p.attachment))errors.push('Invalid policy attachment model.');if(p.source){try{const u=new URL(p.source.url);if(u.protocol!=='https:'||!!u.username||!!u.password||!['docs.aws.amazon.com','aws.amazon.com'].includes(u.hostname)||typeof p.source.title!=='string'||typeof p.source.verified!=='string')errors.push('Invalid policy source.');}catch{errors.push('Invalid policy source.');}}if(p.attachment==='aws-managed'&&!p.managedPolicyId)errors.push('An AWS-managed attachment must identify its reviewed snapshot.');policyIds.add(p.id);if(p.managedPolicyId){const snapshot=managedPolicySnapshots.find(s=>s.id===p.managedPolicyId);if(!snapshot||JSON.stringify(validatePolicyDocument(p.document,p.kind).document)!==JSON.stringify(snapshot.document))errors.push('Managed policy snapshot does not match the reviewed source.');}if(validatePolicyDocument(p.document,p.kind).errors.length)errors.push('Invalid policy document: '+p.name);}
+ for(const r of v.roles){if(!r||!id(r.id)||roleIds.has(r.id)||typeof r.name!=='string'||r.name.length>160||!Array.isArray(r.policyIds)||r.policyIds.length>100||!Array.isArray(r.sessionPolicyIds)||r.sessionPolicyIds.length>100){errors.push('Invalid or duplicate role.');continue;}if(Object.keys(r).some(k=>!['id','name','trustPolicyId','policyIds','boundaryPolicyId','sessionPolicyIds'].includes(k)))errors.push('Unknown role metadata.');if(new Set(r.policyIds).size!==r.policyIds.length||new Set(r.sessionPolicyIds).size!==r.sessionPolicyIds.length)errors.push('Duplicate role policy references.');roleIds.add(r.id);
+  const checks:[string|undefined,string][]=[[r.trustPolicyId,'trust'],[r.boundaryPolicyId,'boundary'],...r.policyIds.map(x=>[x,'identity'] as [string,string]),...r.sessionPolicyIds.map(x=>[x,'session'] as [string,string])];
+  for(const [pid,kind]of checks)if(pid&&!v.policies.some(p=>p.id===pid&&(p.kind===kind||['boundary','session'].includes(kind)&&p.kind==='identity'&&(!!p.managedPolicyId||p.attachment==='customer-managed'))))errors.push(r.name+': missing or incompatible '+kind+' policy reference.');
+ }
+ return errors.length?errors:securityQuotaIssues(v).errors;
+}

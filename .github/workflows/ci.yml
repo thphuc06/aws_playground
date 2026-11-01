@@ -29,6 +29,8 @@ jobs:
       - run: npm run typecheck:backend
       - run: npm run build
       - run: npm run build:backend
+      - name: Real HTTP and SSE with local provider fixtures (no paid requests)
+        run: node scripts/http-smoke.mjs
 
   required:
     name: Required checks

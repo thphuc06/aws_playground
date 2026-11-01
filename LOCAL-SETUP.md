@@ -1,5 +1,10 @@
 # Local DVA-C03 assistant setup
 
+The configuration upgrade uses workspace version3 and configuration schema2.
+Old local keys remain as migration backups; old prose appears under Legacy notes.
+See CONFIGURATION-VERIFICATION.md and CONFIG-COVERAGE-MATRIX.md for the editor,
+IAM library, limits and test evidence. No additional environment variables.
+
 Use Node 22. From the repository root:
 
 ```sh

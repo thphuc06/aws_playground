@@ -1,5 +1,10 @@
 # Render: DVA-C03 architecture assistant
 
+Configuration schema2 requires the latest backend commit: status must advertise
+`configurationSchema:2` and `workspaceSchema:3`. The updated frontend deliberately
+asks for a backend deployment if those capabilities are missing. No environment
+change is needed for this upgrade. See CONFIGURATION-VERIFICATION.md.
+
 Repository: https://github.com/thphuc06/aws_playground (`main`). Frontend remains
 https://aws-developer-playground-phuc.pointykayak.chatgpt.site.
 

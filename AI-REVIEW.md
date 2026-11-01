@@ -1,5 +1,11 @@
 # DVA-C03 architecture assistant
 
+Configuration schema2 adds dynamically discovered typed `configure_resources`
+and atomic `update_security_library` tools. JSON/YAML document text remains raw;
+the tools never execute it. Source metadata and bounded semantic checks are
+shared with the frontend. See CONFIGURATION-VERIFICATION.md for migration,
+provider-schema limits, local guardrails and verification boundaries.
+
 My architecture and AI review & proposal are the two workspace tabs. The single
 Review & build proposal action assesses the current design, teaches service roles
 and creates an isolated draft in one bounded workflow. The legacy review-only

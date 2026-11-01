@@ -7,9 +7,13 @@ Use System purpose, priority and protected services to guide GPT-6.1 Sol.
 An isolated editable draft supports Preview/adoption/Undo; both diagrams persist
 independently. Architecture settings are separate from legacy simulation lessons.
 
-The canvas includes56 C03 services plus2 legacy IDs. See
-[DVA-ARCHITECTURE-COVERAGE.md](DVA-ARCHITECTURE-COVERAGE.md) for58 profiles and326
-fields, and [ICONS.md](ICONS.md) for official artwork and the explicit SAM fallback.
+The canvas includes56 C03 services plus2 legacy IDs. Configuration schema2 now has
+925 top-level fields (1405 including table columns), a tabbed expandable editor,
+JSON/YAML documents, shared IAM roles/policies and bounded local checks. See
+[CONFIG-COVERAGE-MATRIX.md](CONFIG-COVERAGE-MATRIX.md) for service/skill evidence,
+[CONFIGURATION-VERIFICATION.md](CONFIGURATION-VERIFICATION.md) for validation and limits,
+and [ICONS.md](ICONS.md) for official artwork and the explicit SAM fallback.
+The older DVA-ARCHITECTURE-COVERAGE.md describes the preceding326-field milestone.
 The OpenAI key stays backend-side. No disk, reviewer token or USD cap is used.
 See LOCAL-SETUP.md, DEPLOY-RENDER.md and ASSISTANT-VERIFICATION.md for current setup.
 

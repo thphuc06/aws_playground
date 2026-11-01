@@ -1,13 +1,16 @@
+import {configurationFields,configurationSources,isConfigurationDocument,validateConfiguration} from './configurationRegistry';
+import type {JsonValue} from './configurationTypes';
 import {canvasCatalog} from './serviceCatalog';
 import {architectureProfilesData} from './architectureProfilesData';
-export type ArchitectureValue=string|number|boolean;
+export type ArchitectureValue=JsonValue;
 export type ArchitectureSettings=Record<string,ArchitectureValue>;
 export const relationshipKinds=['request','data','network','identity','deployment','observability','unspecified'] as const;
 export type RelationshipKind=typeof relationshipKinds[number];
 export type ArchitectureData={nodes:Record<string,ArchitectureSettings>;relationships:Record<string,RelationshipKind>};
-export function getArchitectureProfile(service:string){return architectureProfilesData[service]}
+export function getArchitectureProfile(service:string){if(!canvasCatalog.some(s=>s.id===service))return undefined;const profile=architectureProfilesData[service];return profile?{...profile,fields:configurationFields[service]??[],sources:configurationSources(service)}:undefined}
 export function validateArchitectureSettings(service:string,value:unknown):string[]{
- const profile=getArchitectureProfile(service);
+ if(isConfigurationDocument(value))return validateConfiguration(service,value).filter(f=>f.level==='error').map(f=>f.detail);
+ const profile=architectureProfilesData[service];
  if(!profile||!value||typeof value!=='object'||Array.isArray(value))return ['Unknown service or invalid settings record.'];
  const errors:string[]=[];
  for(const [key,v] of Object.entries(value)){
@@ -19,5 +22,5 @@ export function validateArchitectureSettings(service:string,value:unknown):strin
 }
 export function architectureSchema(service:string){
  const profile=getArchitectureProfile(service);if(!profile)return null;
- return {service,name:canvasCatalog.find(s=>s.id===service)?.name,...profile,unknownPolicy:'Omitted fields are unknown, not asserted defaults. These are educational design choices, not verified deployment state.'};
+ return {configurationSchema:2,service,name:canvasCatalog.find(s=>s.id===service)?.name,...profile,unknownPolicy:'Omitted fields are unknown, not asserted defaults. These are educational design choices, not verified deployment state.'};
 }
