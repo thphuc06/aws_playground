@@ -1,0 +1,9 @@
+import {describe,it,expect} from 'vitest';
+import {homeServices,homeTasks,homeScoring} from './homeData';
+import {chapters} from './content';
+import {serviceCatalog} from './serviceCatalog';
+describe('official-guide Home overview',()=>{
+ it('reconciles C03 named services and categories without altering canvas',()=>{expect(homeServices['DVA-C03']).toHaveLength(56);expect(homeServices['DVA-C02']).toHaveLength(47);expect(serviceCatalog).toHaveLength(47);expect(new Set(homeServices['DVA-C03'].map(s=>s.id)).size).toBe(56);const counts:Record<string,number>={};for(const s of homeServices['DVA-C03'])counts[s.category]=(counts[s.category]||0)+1;expect(counts).toEqual({'Analytics':4,'Application Integration':4,'Compute':3,'Containers':3,'Database':4,'Developer Tools':7,'Machine Learning and Artificial Intelligence':4,'Management and Governance':9,'Networking and Content Delivery':6,'Security, Identity, and Compliance':8,'Storage':4});expect(homeServices['DVA-C03'].filter(s=>!s.canvas)).toHaveLength(11);expect(homeServices['DVA-C03'].some(s=>s.id==='quick')).toBe(true);expect(homeServices['DVA-C03'].some(s=>s.id==='q-developer')).toBe(false)});
+ it('links every version task to an available relevant chapter',()=>{for(const v of ['DVA-C02','DVA-C03'] as const){expect(homeTasks[v]).toHaveLength(v==='DVA-C02'?13:12);for(const t of homeTasks[v]){const chapter=chapters.find(c=>c.id===t.chapter);expect(chapter,`${v}/${t.id}/${t.chapter}`).toBeDefined();expect(chapter?.examVersions).toContain(v);expect(chapter?.versionTaskIds?.[v]??chapter?.taskIds).toContain(t.id)}}});
+ it('separates scaled scoring and question counts',()=>{expect(homeScoring.minimum).toBe(720);expect(homeScoring.scale).toEqual([100,1000]);expect(homeScoring.scored+homeScoring.unscored).toBe(homeScoring.total);expect(homeScoring.total).toBe(65);expect(homeScoring.overviewMinutes).toBe(130)});
+});

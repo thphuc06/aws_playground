@@ -1,0 +1,47 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Tests, types, builds and sensitive files
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Check tracked files without printing secrets
+        run: npm run check:secrets
+      - run: npm ci
+      - name: Unit and integration fixtures (no paid API calls)
+        run: npm test
+      - run: npm run typecheck
+      - run: npm run typecheck:backend
+      - run: npm run build
+      - run: npm run build:backend
+
+  required:
+    name: Required checks
+    if: ${{ always() }}
+    needs: [verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require success, including when a dependency was skipped or canceled
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+        run: |
+          if [ "$VERIFY_RESULT" != "success" ]; then
+            echo "Required verification did not succeed."
+            exit 1
+          fi

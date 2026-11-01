@@ -1,0 +1,36 @@
+{
+  "name": "aws-developer-playground",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": "22.x"},
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "typecheck": "tsc -b",
+    "build:backend": "node backend/build.mjs",
+    "start:backend": "node backend/dist/server.mjs",
+    "typecheck:backend": "tsc -p backend/tsconfig.json",
+    "check:secrets": "node scripts/check-sensitive-files.mjs",
+    "start:backend:local": "node --env-file=.env.local backend/dist/server.mjs",
+    "ledger:init:local": "node --env-file=.env.local backend/dist/init-ledger.mjs",
+    "smoke:live": "node --env-file=.env.local backend/dist/live-smoke.mjs --live-approved"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "lucide-react": "^0.468.0",
+    "@xyflow/react": "^12.3.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "vitest": "4.1.12",
+    "esbuild": "0.25.12",
+    "@types/node": "^22.19.19"
+  }
+}

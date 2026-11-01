@@ -1,0 +1,28 @@
+# Bootstrap only: no paid compute/disk is requested and AI remains disabled.
+# See DEPLOY-RENDER.md and deploy/render.persistent.yaml before enabling reviews.
+services:
+  - type: web
+    name: aws-playground-review
+    runtime: node
+    plan: free
+    repo: https://github.com/thphuc06/aws_playground
+    branch: main
+    buildCommand: npm ci --include=dev && npm run build:backend
+    startCommand: npm run start:backend
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: REVIEW_ENABLED
+        value: 'false'
+      - key: REVIEW_PERSISTENT_DISK_CONFIRMED
+        value: 'false'
+      - key: REVIEW_ALLOWED_ORIGINS
+        value: https://aws-developer-playground-phuc.pointykayak.chatgpt.site
+      - key: REVIEW_MODEL
+        value: gpt-5.4-mini-2026-03-17
+      - key: REVIEW_BUDGET_USD
+        value: '1'
+      - key: REVIEW_LEDGER_PATH
+        value: /var/data/architecture-review-ledger.json
