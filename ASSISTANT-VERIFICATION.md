@@ -1,3 +1,25 @@
+# Follow-up: unified report, live activity and edit-contract repair
+
+The current UI uses one Review & build proposal action and two tabs. Activity
+streams actual actions and tool results, excluding provider reasoning. Sources
+are grouped once with numbered links; service names replace internal IDs.
+
+The observed Unsupported operation defect is addressed by replacing opaque
+operationsJson with a strict typed operations array. Rejected edits return
+proposalStatus=edit_failed and draft=null; the last valid saved graph is kept.
+Layout-only changes do not count as architecture changes. Configuration-only
+improvements are supported and tested. Reports are concise/collapsible and the
+new diagram/configuration diff follows the assessment and service explanations.
+
+504 unit/fixture tests pass, including operation-enum constraints, failed-edit
+status, layout-only diff, configuration-only improvements, original-node
+references after removal, source deduplication and activity confidentiality.
+Both typechecks/builds pass. No extra paid OpenAI request was made for this
+follow-up. Browser E2E remains unverified under the earlier access limitation.
+Earlier live-test evidence below refers to the previous revision.
+
+---
+
 # DVA-C03 assistant verification — 2026-11-01
 
 ## Implemented and checked

@@ -23,8 +23,8 @@ npm run start:backend:local
 
 In another terminal, `npm run dev`. Open the reported local URL. Connect the
 backend using http://localhost:8787, enter System purpose and explicitly consent.
-Use Review architecture for read-only assessment or Build AI proposal for an
-independent editable canvas. Review assumptions, sources and exact diff before
+Use Review & build proposal for one combined assessment, service explanation
+and independent editable canvas. Review assumptions, sources and exact diff before
 Use this proposal. Undo is session-only and blocked after a newer original edit.
 
 Both graphs, purpose and reports persist separately under

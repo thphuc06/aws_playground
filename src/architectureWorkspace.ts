@@ -15,18 +15,24 @@ export function readWorkspace(storage:Pick<Storage,'getItem'|'setItem'>):Archite
 export function saveWorkspace(storage:Pick<Storage,'setItem'>,workspace:ArchitectureWorkspace){storage.setItem(workspaceKey,JSON.stringify(workspace))}
 export function acceptAssistantResult(workspace:ArchitectureWorkspace,result:AssistantResult):ArchitectureWorkspace {
  if(result.mode==='review')return {...workspace,review:result};
+ if(result.proposalStatus==='edit_failed')return {...workspace,proposal:result};
  const parsed=validateReviewGraph(result.draft);if(!parsed.ok)throw new Error('AI draft failed client validation.');
  return {...workspace,draft:parsed.graph,draftBase:result.baseFingerprint,proposal:result};
 }
 export function completionNotice(mode:'review'|'design',stale:boolean){
  if(stale)return mode==='design'?'AI proposal created for an older snapshot. Rerun before adopting.':'Review completed for an older snapshot. Rerun to assess your latest changes.';
- return mode==='design'?'AI proposal created. The editable diagram is in the AI proposal tab below.':'Review complete. Findings are in AI review. To generate a separate diagram, choose Build AI proposal.';
+ return mode==='design'?'Assessment and AI proposal ready. Read the explanation and inspect the editable diagram below.':'Review complete. Findings are in the combined result tab. Choose Review & build proposal to also generate a diagram.';
 }
 export function isDraftStale(workspace:ArchitectureWorkspace){return workspace.draftBase!==fingerprintGraph(workspace.original)}
+const stable=(v:unknown):string=>{if(Array.isArray(v))return '['+v.map(stable).join(',')+']';if(v&&typeof v==='object')return '{'+Object.entries(v).sort(([a],[b])=>a.localeCompare(b)).map(([k,x])=>JSON.stringify(k)+':'+stable(x)).join(',')+'}';return JSON.stringify(v)??'unknown'};
 export function graphChanges(before:Graph,after:Graph):string[]{
- const changes:string[]=[];for(const n of before.nodes)if(!after.nodes.some(x=>x.id===n.id))changes.push('Remove '+n.label);
- for(const n of after.nodes){const old=before.nodes.find(x=>x.id===n.id);if(!old)changes.push('Add '+n.label);else if(JSON.stringify(old)!==JSON.stringify(n))changes.push('Update '+n.label);if(JSON.stringify(before.architecture?.nodes[n.id]??{})!==JSON.stringify(after.architecture?.nodes[n.id]??{}))changes.push('Configure '+n.label);}
- for(const e of before.edges)if(!after.edges.some(x=>x.id===e.id))changes.push('Remove connection '+e.id);
- for(const e of after.edges)if(!before.edges.some(x=>x.id===e.id))changes.push('Add connection '+e.id);
+ const changes:string[]=[];
+ for(const n of before.nodes)if(!after.nodes.some(x=>x.id===n.id))changes.push('Remove service: '+n.label);
+ for(const n of after.nodes){const old=before.nodes.find(x=>x.id===n.id);if(!old)changes.push('Add service: '+n.label);else if(old.service!==n.service||old.label!==n.label)changes.push('Change service: '+old.label+' → '+n.label);
+  for(const map of ['architecture','lambdaConfigs','apiConfigs','eventBridgeConfigs','learningConfigs'] as const){const a=map==='architecture'?before.architecture?.nodes[n.id]:before[map]?.[n.id],b=map==='architecture'?after.architecture?.nodes[n.id]:after[map]?.[n.id];if(stable(a??{})!==stable(b??{})){const keys=[...new Set([...Object.keys(a??{}),...Object.keys(b??{})])].filter(k=>stable((a as any)?.[k])!==stable((b as any)?.[k]));changes.push('Configure '+n.label+': '+keys.join(', '));}}
+ }
+ const label=(g:Graph,id:string)=>g.nodes.find(n=>n.id===id)?.label??id;
+ for(const e of before.edges)if(!after.edges.some(x=>x.id===e.id))changes.push('Remove connection: '+label(before,e.source)+' → '+label(before,e.target));
+ for(const e of after.edges){const old=before.edges.find(x=>x.id===e.id);const name=label(after,e.source)+' → '+label(after,e.target);if(!old)changes.push('Add connection: '+name);else{if(old.source!==e.source||old.target!==e.target||old.label!==e.label)changes.push('Change connection: '+name);if(stable(before.configs[e.id]??{})!==stable(after.configs[e.id]??{}))changes.push('Configure connection: '+name);if((before.architecture?.relationships[e.id]??'unspecified')!==(after.architecture?.relationships[e.id]??'unspecified'))changes.push('Change relationship type: '+name);}}
  return changes;
 }

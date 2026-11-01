@@ -1,7 +1,9 @@
 # DVA-C03 architecture assistant
 
-My architecture, AI review and AI proposal are separate views over a versioned
-local workspace. Reviews are read-only. Design tools edit an isolated copy;
+My architecture and AI review & proposal are the two workspace tabs. The single
+Review & build proposal action assesses the current design, teaches service roles
+and creates an isolated draft in one bounded workflow. The legacy review-only
+API remains compatible. Design tools edit an isolated copy;
 only explicit Preview/Use this proposal adopts it. Protected node IDs and
 service types cannot be removed/replaced by the agent. The UI preserves compute
 and primary data-store nodes by default. Goal/priority and protected nodes are
@@ -50,3 +52,27 @@ Official references reviewed2026-11-01:
 - https://developers.openai.com/api/docs/models/gpt-6.1-sol
 - https://developers.openai.com/api/docs/guides/function-calling
 - https://developers.openai.com/api/docs/guides/tools-web-search
+
+## Observable activity and honest proposal status
++
++SSE activity events describe actual tool requests/results: service-schema reads,
++AWS search queries and references, accepted draft edits, validation and rejected
++operations. The same history is saved with a completed report. Raw provider
++reasoning items, encrypted reasoning and authorization headers are never exposed.
++The UI updates a row by activity ID and marks canceled work as interrupted.
++
++edit_draft now uses a strict typed operations array with an enum of supported
++operations and typed node/edge/settings fields. An opaque operationsJson string
++no longer bypasses the function schema. A rejected edit cannot be presented as
++a successful proposal: proposalStatus is changed, unchanged or edit_failed.
++Layout-only changes do not count as architecture changes. Failed edits return
++recommendations with draft:null, preserving the previous saved draft in the UI.
++Configuration-only improvements are valid; adding unnecessary components is not
++required. Reports put the canvas/diff first, collapse extended explanations,
++resolve node labels, and group repeated sources with numbered citations.
++
+The combined report distinguishes current findings from proposed improvements.
+Service explanations include role, rationale and configuration notes with source
+IDs. The diagram/configuration diff follows the explanation; sources are grouped
+once with numbered citations. Old saved reports remain readable. The unified UI
+uses mode=design without adding another paid workflow or extra model loop.
