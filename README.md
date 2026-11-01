@@ -7,7 +7,7 @@ A private, browser-only AWS Developer Associate learning workspace: an editable 
 Start with **[LOCAL-SETUP.md](LOCAL-SETUP.md)** for Windows/WSL and private
 configuration, **[DEPLOY-RENDER.md](DEPLOY-RENDER.md)** for the connected Render
 Blueprint, and **[SETUP-VERIFICATION.md](SETUP-VERIFICATION.md)** for this setup's
-observed results. The default Blueprint starts with AI disabled.
+observed results. The Blueprint uses Free compute without disk; configure private secrets to enable AI.
 
 ```sh
 npm ci
@@ -115,9 +115,9 @@ Home is the new entry page, with DVA-C03 selected unless a URL explicitly select
 
 ## Optional AI architecture review
 
-See **BACKEND-SETUP.md** for local setup, the separate Render backend, secret handling, the initial $1 total testing guard, and the user-run real-provider smoke command. **AI-REVIEW.md** explains trust boundaries. The existing private Site hosts only the frontend; no API key/backend is supplied or activated.
+See **BACKEND-SETUP.md** for local setup, the separate Render backend, secret handling, the per-process memory allowance (resets on restart), and the user-run real-provider smoke command. **AI-REVIEW.md** explains trust boundaries. The existing private Site hosts only the frontend; no API key/backend is supplied or activated.
 
-- `backend/`: Node server, authenticated review route, bounded Responses API transport, persistent reservation ledger, explicit ledger initializer and live-smoke command.
+- `backend/`: Node server, authenticated review route, bounded Responses API transport, in-memory reservation guard and live-smoke command.
 - `src/architectureReview.ts`: shared strict proposal validator, atomic Apply, exact-snapshot stale guard and in-session Undo.
 - `src/ArchitectureReviewPanel.tsx`: explicit backend trust/graph consent, source-aware advice, before/after preview and user-controlled Apply.
 - `npm run build:backend`, `npm run typecheck:backend`, `npm run start:backend`: optional server commands. Start with private environment settings as documented; the plain start command does not auto-load `.env.local`.

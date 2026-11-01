@@ -1,5 +1,5 @@
 import {fingerprintGraph,previewProposal,applyProposal,undoProposal,validateReviewGraph,type Graph} from '../src/architectureReview';
-/** User-run ONLY. Uses the same authenticated backend and durable ledger; never bypasses it. */
+/** User-run ONLY. Uses the same authenticated backend and per-process memory budget; never bypasses it. */
 export async function smoke(env:Record<string,string|undefined>,args:string[],transport:typeof fetch=fetch){
  if(!args.includes('--live-approved'))throw new Error('No request made. Rerun only with --live-approved after reviewing the configured paid API budget.');
  const raw=env.REVIEW_BACKEND_URL||'http://localhost:8787';const url=new URL(raw);if(url.origin!==raw||url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(url.hostname)))throw new Error('Use an exact HTTPS backend origin or localhost HTTP.');

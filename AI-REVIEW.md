@@ -1,6 +1,6 @@
 # AI architecture review
 
-The frontend remains a private static ChatGPT Site. The optional Node backend in `backend/` runs locally or on the owner's Render service. It is disabled until the owner privately configures an existing OpenAI key, a separate reviewer access token, an allowed frontend origin and the bounded spend ledger. See **BACKEND-SETUP.md** for exact setup and verification commands.
+The frontend remains a private static ChatGPT Site. The optional Node backend in `backend/` runs locally or on the owner's Render service. It is disabled until the owner privately configures an existing OpenAI key, a separate reviewer access token, an allowed frontend origin and the per-process memory allowance. See **BACKEND-SETUP.md** for exact setup and verification commands.
 
 ## Boundaries
 
@@ -16,9 +16,19 @@ The frontend remains a private static ChatGPT Site. The optional Node backend in
 
 Only the server-owned allowlisted model is used; the browser cannot select models, endpoints, tools or token limits. Requests use structured outputs and `store:false`, bounded time/output and no automatic retries. `store:false` does not promise zero provider retention.
 
-Official model reference checked 2026-11-01: `gpt-5.4-mini-2026-03-17`, standard text prices $0.75/M input and $4.50/M output. The backend uses more conservative reservation rates and permanently reserves a worst-case amount before each attempt, including failed or ambiguous attempts. This ledger is a local spending guard, not the provider invoice or a guarantee against account-wide spending by other apps. Do not reset it or create another allowance when moving from local to Render; transfer the same ledger and stop the old backend. Persistent storage and one active instance are required.
+Official model reference checked 2026-11-01: `gpt-5.4-mini-2026-03-17`, standard
+text prices $0.75/M input and $4.50/M output. The backend reserves conservatively
+before every attempt, retaining failed/uncertain calls in the current process.
 
-The initial authorized testing ceiling is **$1 total**, not the user's entire account credit balance. No top-ups, production budget, Render purchases or deployment were performed by the assistant. The supplied real-call smoke command is for the user to run with their privately configured key; no live provider response was available during implementation.
+At the owner's request, the disk requirement was removed. The allowance now
+lives in memory and **resets on restart, deploy, idle spin-down or a new instance**.
+`REVIEW_BUDGET_USD` is not a cumulative $1 or account-wide billing cap. No file
+initialization or disk migration is needed; old local accounting files are left
+untouched as historical records. No paid calls were made for this change.
+
+The earlier local live test made two real requests: one invalid proposal was
+rejected; the next passed Preview/Apply/JSON roundtrip/Undo on synthetic data.
+This does not prove all future proposals will be valid or verify browser E2E.
 
 ## Official references
 
@@ -26,4 +36,4 @@ The initial authorized testing ceiling is **$1 total**, not the user's entire ac
 - https://developers.openai.com/api/docs/guides/structured-outputs
 - https://developers.openai.com/api/docs/guides/migrate-to-responses
 
-See BACKEND-SETUP.md for Render's official deployment/storage references and explicit test limitations.
+See BACKEND-SETUP.md for Render's official deployment references and explicit test limitations.

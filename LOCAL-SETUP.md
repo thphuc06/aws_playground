@@ -1,92 +1,55 @@
-# Local setup (Windows + Ubuntu WSL)
+# Local setup — no disk required
 
-The repository is at `C:\HCMUS\DVA\aws_playground`. Use Node 22. Native
-Windows can build the frontend/backend, but its directory `fsync` fails the five
-durable-ledger tests. Use Linux Node in Ubuntu WSL for the backend and complete
-test suite. Do not skip these tests or weaken `fsync`.
+Use Node 22 on Windows, Linux or macOS. WSL is optional. The project is at
+`C:\HCMUS\DVA\aws_playground` on the owner's machine.
 
-## Install and verify
-
-Use a Linux filesystem checkout, separate from Windows `node_modules`:
-
-```bash
-git clone https://github.com/thphuc06/aws_playground.git ~/aws_playground
-cd ~/aws_playground
-node --version  # must be Linux Node 22, not Windows npm through PATH
+```sh
 npm ci
 npm test
 npm run typecheck
 npm run typecheck:backend
 npm run build
 npm run build:backend
-npm run check:secrets
 ```
 
-During setup on this machine a verified official Node 22 distribution was
-installed without changing the system Node at:
-`/home/phuc/.local/share/aws-playground-tools/node-v22.23.4-linux-x64/bin`.
-In WSL, prepend that directory to PATH if Node is not otherwise installed:
+If `.env.local` does not exist, copy `backend/.env.example` there. Preserve any
+existing file. Enter your existing `OPENAI_API_KEY` privately and a different
+random `REVIEW_ACCESS_TOKEN` of at least 32 characters. Neither belongs in Git,
+chat, screenshots or frontend variables. `.env.local` is ignored.
 
-```bash
-export PATH=/home/phuc/.local/share/aws-playground-tools/node-v22.23.4-linux-x64/bin:$PATH
-```
+Set `REVIEW_ENABLED=true`, `REVIEW_BUDGET_USD=1`,
+`REVIEW_MODEL=gpt-5.4-mini-2026-03-17`, `PORT=8787`, and
+`REVIEW_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173`.
+No ledger path, disk assertion or initialization command is needed. Old
+`REVIEW_LEDGER_PATH` and `REVIEW_PERSISTENT_DISK_CONFIRMED` values are ignored.
 
-## Private local configuration
+Start the backend, then the frontend in a second terminal:
 
-Only create `.env.local` if it does not exist. Never overwrite an existing file.
-Use `backend/.env.example` as the template. `.env.local` is ignored by Git.
-Enter secrets in your editor, never in chat or command arguments:
-
-- `OPENAI_API_KEY`: your existing key, backend only.
-- `REVIEW_ACCESS_TOKEN`: a DIFFERENT random value, at least 32 characters.
-- `REVIEW_ENABLED=false` until you are ready for the approved live test.
-- `REVIEW_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173`.
-- `PORT=8787`.
-- `REVIEW_LEDGER_PATH`: absolute path on the WSL Linux filesystem, for example
-  `/home/phuc/.local/share/aws-playground/review-ledger.json`.
-- `REVIEW_PERSISTENT_DISK_CONFIRMED=true` only after checking durable storage.
-- `REVIEW_BUDGET_USD=1`: initial cumulative limit, never reset to repeat testing.
-- `REVIEW_MODEL=gpt-5.4-mini-2026-03-17`.
-- `REVIEW_BACKEND_URL=http://localhost:8787` and
-  `REVIEW_SMOKE_ORIGIN=http://localhost:5173` for the optional live smoke.
-
-Create the ledger parent directory first. Initialize only a genuinely new ledger
-once; if one exists, preserve and use it. The initializer refuses overwrite:
-
-```bash
-mkdir -p /home/phuc/.local/share/aws-playground
-npm run ledger:init:local
+```sh
 npm run start:backend:local
+npm run dev
 ```
 
-In another terminal at the project root:
+Open the URL Vite reports (normally http://127.0.0.1:5173). In Builder ->
+Architecture review, enter `http://localhost:8787` and the separate review token,
+explicitly trust/connect, then consent to submitting the synthetic graph.
+Inspect Preview before Apply. Undo is available in the same browser session
+only while the graph has not changed after Apply.
 
-```bash
-npm run dev -- --port 5173 --strictPort
-```
+## Budget behavior
 
-Open <http://127.0.0.1:5173>. In Builder, expand **Architecture review**, enter
-the backend URL and the separate review token, then explicitly trust/connect.
-`GET /health` proves liveness only. Review stays unavailable until enabled with
-valid credentials, allowlist and durable ledger. The HTTPS hosted Site should
-use an HTTPS Render backend, not this HTTP localhost address.
+The allowance lives only in process memory. It resets on restart, deployment,
+idle spin-down or a new instance. It is NOT a cumulative $1 or account-wide
+billing cap. One running process is recommended; instances do not share limits.
+Failed/timeout/invalid requests keep their conservative reservation for that
+process's lifetime. Output/body limits, authentication, CORS, one concurrent
+review, three starts per minute and no automatic retry remain enforced.
 
-## Real-provider check: wait until the owner enters the key
+## Optional paid smoke
 
-After private key entry and owner confirmation, set `REVIEW_ENABLED=true`, restart
-the backend, and run **one** `npm run smoke:live` from the same configured root.
-It calls the application backend, not OpenAI directly. No automatic retry.
-The command checks returned schema/proposal, preview, apply, JSON persistence
-roundtrip and undo on synthetic in-memory data. An advice-only response is
-reported honestly: no real-response Apply/Undo was exercised. This is not a
-browser E2E test; inspect the browser separately. Stop if the outcome is unclear.
-
-All attempts share the same ledger. Failed/timeout/invalid calls retain their
-reservation. Never delete `.lock`, `.next` or ledger files to make a test pass.
-Investigate stale locks only after stopping every writer. Undo is session-only
-and rejects a graph changed after Apply.
-
-The pinned model's standard text prices were checked on 2026-11-01: $0.75 per
-million input tokens and $4.50 per million output tokens. The existing backend
-reserves more conservatively ($2/$10 per million and a byte-based input bound).
-See [OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-5.4-mini).
+Only with owner authorization, `npm run smoke:live` sends one synthetic review
+through the running application backend. Configure `REVIEW_BACKEND_URL` and
+`REVIEW_SMOKE_ORIGIN` in `.env.local`. It validates Preview/Apply/JSON roundtrip/
+Undo; advice-only responses are reported as not exercising Apply/Undo.
+This is not browser E2E. Restarting does not authorize more paid tests.
+No paid calls were made while implementing the diskless change.

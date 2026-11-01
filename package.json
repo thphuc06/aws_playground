@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": {"node": "22.x"},
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
@@ -14,7 +16,6 @@
     "typecheck:backend": "tsc -p backend/tsconfig.json",
     "check:secrets": "node scripts/check-sensitive-files.mjs",
     "start:backend:local": "node --env-file=.env.local backend/dist/server.mjs",
-    "ledger:init:local": "node --env-file=.env.local backend/dist/init-ledger.mjs",
     "smoke:live": "node --env-file=.env.local backend/dist/live-smoke.mjs --live-approved"
   },
   "dependencies": {

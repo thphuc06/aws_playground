@@ -1,5 +1,5 @@
-# Bootstrap only: no paid compute/disk is requested and AI remains disabled.
-# See DEPLOY-RENDER.md and deploy/render.persistent.yaml before enabling reviews.
+# Free compute, no disk. The memory budget resets on restart/deploy.
+# Enter the two secrets privately; review stays disabled if either is missing.
 services:
   - type: web
     name: aws-playground-review
@@ -15,14 +15,14 @@ services:
       - key: NODE_VERSION
         value: '22'
       - key: REVIEW_ENABLED
-        value: 'false'
-      - key: REVIEW_PERSISTENT_DISK_CONFIRMED
-        value: 'false'
+        value: 'true'
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: REVIEW_ACCESS_TOKEN
+        sync: false
       - key: REVIEW_ALLOWED_ORIGINS
         value: https://aws-developer-playground-phuc.pointykayak.chatgpt.site
       - key: REVIEW_MODEL
         value: gpt-5.4-mini-2026-03-17
       - key: REVIEW_BUDGET_USD
         value: '1'
-      - key: REVIEW_LEDGER_PATH
-        value: /var/data/architecture-review-ledger.json

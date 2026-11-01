@@ -1,3 +1,18 @@
+# Current update — disk requirement removed (2026-11-01)
+
+At the owner's request, this version uses a per-process memory budget. The
+disk-based setup below records the initial import and is historical, not current
+deployment guidance. Use LOCAL-SETUP.md and DEPLOY-RENDER.md for the current flow.
+
+The new memory guard tests cover concurrent reservations, exhaustion, invalid
+amounts/budgets and reset on a new instance. Configuration regression tests cover
+startup without disk settings, ignored old disk fields, missing credentials and
+truthful status metadata. On Windows: 478 tests pass; both typechecks and both
+builds pass. No paid OpenAI call was made for this change. Existing local ledger
+data was preserved and the prior live-test allowance was not used again.
+
+---
+
 # Setup verification — 2026-11-01
 
 Scope: source ZIP imported into the owner's initially empty
