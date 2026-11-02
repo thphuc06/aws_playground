@@ -8,7 +8,7 @@ import ConfigurationPractice,{ConfigurationCoverage} from './ConfigurationPracti
 import {validateSecurityLibrary} from './securityLibrary';
 import './configuration.css';
 export default function ConfigurationInspector({service,values,onChange,graph,onDirtyChange,onExpandedChange}:{service:string;values:ArchitectureSettings;onChange:(next:ArchitectureSettings,library?:SecurityLibrary)=>void;graph?:ConfigurationGraph;onDirtyChange?:(dirty:boolean)=>void;onExpandedChange?:(expanded:boolean)=>void}){
- const profile=getArchitectureProfile(service);const [draft,setDraft]=useState<ConfigurationDocument>(()=>migrateConfiguration(service,values)),[library,setLibrary]=useState<SecurityLibrary>(()=>structuredClone(graph?.securityLibrary??emptySecurityLibrary())),[tab,setTab]=useState<ConfigTab>('overview'),[notice,setNotice]=useState(''),[expanded,setExpanded]=useState(false);
+ const profile=getArchitectureProfile(service);const [draft,setDraft]=useState<ConfigurationDocument>(()=>migrateConfiguration(service,values)),[library,setLibrary]=useState<SecurityLibrary>(()=>structuredClone(graph?.securityLibrary??emptySecurityLibrary())),[tab,setTab]=useState<ConfigTab>(()=>Object.keys(migrateConfiguration(service,values).legacyNotes).length?'overview':'configuration'),[notice,setNotice]=useState(''),[expanded,setExpanded]=useState(false);
  const [saved,setSaved]=useState(()=>JSON.stringify({draft:migrateConfiguration(service,values),library:graph?.securityLibrary??emptySecurityLibrary()}));const dirty=JSON.stringify({draft,library})!==saved;
  useEffect(()=>{onDirtyChange?.(dirty);return()=>onDirtyChange?.(false)},[dirty,onDirtyChange]);
  useEffect(()=>{onExpandedChange?.(expanded);return()=>onExpandedChange?.(false)},[expanded,onExpandedChange]);

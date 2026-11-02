@@ -1,3 +1,4 @@
+import ContextHelp from './ContextHelp';
 import {policyLimitData,policyLimitNotes} from './policyQuotaChecks';
 import {lazy,Suspense} from 'react';
 import type {ConfigField,JsonValue,SecurityLibrary} from './configurationTypes';
@@ -10,7 +11,7 @@ export default function ConfigurationField({field,value,values,onChange,graph,li
  const rows=Array.isArray(value)?value as Record<string,JsonValue>[]:[];
  const setRow=(index:number,key:string,next:JsonValue|undefined)=>{const clone=structuredClone(rows);if(next===undefined)delete clone[index][key];else clone[index][key]=next;onChange(clone)};
  const source=field.source;
- return <section className={'configuration-field'+(applicable===false?' field-inapplicable':'')} data-field={field.key}><header><label htmlFor={id}>{field.label}{field.unit&&<span className="config-unit">{field.unit}</span>}</label><span className="config-tier">{field.tier??'core'}</span>{value!==undefined&&<button onClick={()=>onChange(undefined)} aria-label={'Clear '+field.label}>Clear</button>}</header><p className="field-help">{field.help}</p>
+ return <section className={'configuration-field'+(applicable===false?' field-inapplicable':'')} data-field={field.key}><header><label htmlFor={id}>{field.label}{field.unit&&<span className="config-unit">{field.unit}</span>}</label><ContextHelp label={field.label+" help"}><p>{field.help}</p></ContextHelp><span className="config-tier">{field.tier??'core'}</span>{value!==undefined&&<button onClick={()=>onChange(undefined)} aria-label={'Clear '+field.label}>Clear</button>}</header>
  {applicable!==true&&<p className="config-warning">{applicable===false?'This value is not applicable to the selected variant. Clear it before saving.':'Choose '+field.when?.field+' to determine feature availability.'}</p>}
  <fieldset className="config-input-group" disabled={applicable!==true}>
  {field.kind==='text'&&<input id={id} value={typeof value==='string'?value:''} maxLength={2000} placeholder="Unknown / not specified" onChange={e=>onChange(e.target.value||undefined)}/>}
