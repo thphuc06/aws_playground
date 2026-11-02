@@ -6,6 +6,7 @@ export interface ServiceLearningMetadata {
 }
 export interface LearningGlossaryEntry {
  id:string;term:string;en:string;vi:string;aliases:string[];serviceIds:string[];lessonIds:string[];
+ sources?:LearningSource[];
 }
 export interface ServiceComparison {
  id:string;title:string;question:string;serviceIds:string[];

@@ -36,4 +36,10 @@ describe('learning prerequisites and bilingual terminology',()=>{
   for(const g of learningGlossary){expect(g.en.length).toBeGreaterThan(30);expect(g.vi.length).toBeGreaterThan(30);expect(g.vi).not.toBe(g.en);expect(g.aliases.length).toBeGreaterThan(0);for(const id of g.serviceIds)expect(serviceIds.has(id),id).toBe(true);for(const id of g.lessonIds)expect(lessonIds.has(id),id).toBe(true)}
   expect(learningGlossary.find(g=>g.id==='visibility-timeout')?.vi).toContain('không có nghĩa là xóa');
  });
+ it('keeps ECS application and agent roles distinct in both languages',()=>{
+  const role=learningGlossary.find(g=>g.id==='execution-role')!;
+  expect(role.en).toContain('application code uses the task role');expect(role.en).toContain('ECS/Fargate agent');
+  expect(role.vi).toContain('mã ứng dụng dùng task role');expect(role.vi).toContain('ECS/Fargate agent');
+  expect(role.sources?.some(s=>s.url==='https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html')).toBe(true);
+ });
 });
