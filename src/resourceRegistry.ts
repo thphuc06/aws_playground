@@ -1,0 +1,63 @@
+import type {JsonValue} from './configurationTypes';
+import {canonicalResourceKinds,emptyServiceBinding,localResourceRef,type CanonicalResource,type CanonicalResourceKind,type ResourceContext,type ResourceRef,type ResourceRegistry,type ResourceUsage} from './resourceTypes';
+
+const record=(v:unknown):v is Record<string,any>=>!!v&&typeof v==='object'&&!Array.isArray(v);
+export const validResourceId=(v:unknown):v is string=>typeof v==='string'&&/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(v)&&!['constructor','prototype','__proto__'].includes(v);
+const kinds=new Set<string>(canonicalResourceKinds);
+export function isResourceRef(value:unknown):value is ResourceRef{return record(value)&&['local','external'].includes(value.type)&&kinds.has(value.kind)&&typeof value.id==='string';}
+function validContext(value:unknown){return record(value)&&Object.keys(value).every(k=>['partition','accountId','region','availabilityZone'].includes(k)&&typeof value[k]==='string'&&value[k].length<=100);}
+export function resourceRefErrors(value:unknown):string[]{
+ if(!isResourceRef(value)||!value.id.trim()||value.id.length>512)return ['A resource reference needs local/external type, resource kind and identifier.'];
+ if(Object.keys(value).some(k=>!['type','kind','id',...(value.type==='external'?['context']:[])].includes(k)))return ['Unknown resource reference property.'];
+ if(value.type==='local'&&!validResourceId(value.id))return ['Invalid local resource ID.'];
+ if(value.type==='external'&&value.context!==undefined&&!validContext(value.context))return ['Invalid external resource context.'];return [];
+}
+export function resourceReferences(value:unknown,path=''): {ref:ResourceRef;path:string}[]{
+ if(isResourceRef(value))return [{ref:value,path}];if(Array.isArray(value))return value.flatMap((v,i)=>resourceReferences(v,path+'.'+i));if(record(value))return Object.entries(value).flatMap(([key,v])=>resourceReferences(v,path?path+'.'+key:key));return [];
+}
+export function resolveResource(registry:ResourceRegistry,ref:ResourceRef):{status:'local';resource:CanonicalResource}|{status:'external'|'missing'|'incompatible'}{
+ if(ref.type==='external')return {status:'external'};const resource=registry.resources.find(r=>r.id===ref.id);return !resource?{status:'missing'}:resource.kind!==ref.kind?{status:'incompatible'}:{status:'local',resource};
+}
+export function resourceVpc(registry:ResourceRegistry,ref:ResourceRef|undefined):ResourceRef|undefined{
+ const seen=new Set<string>();while(ref){if(ref.kind==='vpc')return ref;if(ref.type==='external'||seen.has(ref.id))return;seen.add(ref.id);const found=resolveResource(registry,ref);if(found.status!=='local')return;ref=found.resource.owner;}
+}
+export function effectiveResourceContext(registry:ResourceRegistry,resource:CanonicalResource):ResourceContext{
+ const chain:CanonicalResource[]=[resource],seen=new Set([resource.id]);let owner=resource.owner;while(owner?.type==='local'&&!seen.has(owner.id)){seen.add(owner.id);const r=registry.resources.find(r=>r.id===owner!.id);if(!r)break;chain.unshift(r);owner=r.owner;}return Object.assign({},...chain.map(r=>r.context));
+}
+export function registryShapeErrors(input:unknown,nodeIds:string[],frameIds:string[]):string[]{
+ if(!record(input)||input.version!==1||!Array.isArray(input.resources)||input.resources.length>1000||!record(input.serviceBindings)||!record(input.frameBindings)||Object.keys(input).some(k=>!['version','resources','serviceBindings','frameBindings','migration'].includes(k)))return ['Invalid canonical resource registry or app limit (1,000 resources).'];
+ const errors:string[]=[],registry=input as ResourceRegistry,ids=new Set<string>();
+ for(const r of registry.resources){if(!record(r)||!validResourceId(r.id)||ids.has(r.id)||!kinds.has(r.kind)||typeof r.name!=='string'||!r.name.trim()||r.name.length>120||!validContext(r.context)||!record(r.values)||Object.keys(r).some(k=>!['id','kind','name','context','owner','values','sourceKey'].includes(k))||r.sourceKey!==undefined&&(typeof r.sourceKey!=='string'||r.sourceKey.length>512)){errors.push('Invalid or duplicate canonical resource.');continue;}ids.add(r.id);if(r.owner)errors.push(...resourceRefErrors(r.owner));for(const {ref,path}of resourceReferences(r.values))errors.push(...resourceRefErrors(ref).map(e=>r.name+' '+path+': '+e));}
+ for(const [id,b]of Object.entries(registry.serviceBindings)){if(!nodeIds.includes(id)||!record(b)||Object.keys(b).some(k=>!['resource','vpc','subnets','securityGroups','networkInterfaces'].includes(k))||!['subnets','securityGroups','networkInterfaces'].every(k=>Array.isArray(b[k])&&b[k].length<=100)){errors.push('Invalid service resource binding: '+id);continue;}for(const {ref}of resourceReferences(b))errors.push(...resourceRefErrors(ref));for(const [field,kind]of [['vpc','vpc'],['subnets','subnet'],['securityGroups','security-group'],['networkInterfaces','network-interface']]){const refs=Array.isArray(b[field])?b[field]:b[field]?[b[field]]:[];if(refs.some((ref:unknown)=>!isResourceRef(ref)||ref.kind!==kind))errors.push(id+': incompatible '+field+' reference.');if(new Set(refs.map((ref:ResourceRef)=>ref.type+':'+ref.id)).size!==refs.length)errors.push(id+': duplicate '+field+' reference.');}}
+ for(const [id,ref]of Object.entries(registry.frameBindings)){if(!frameIds.includes(id))errors.push('Missing visual frame binding target: '+id);errors.push(...resourceRefErrors(ref));}
+ for(const r of registry.resources){const seen=new Set([r.id]);let owner=r.owner;while(owner?.type==='local'){if(seen.has(owner.id)){errors.push('Canonical resource ownership cycle: '+r.name);break;}seen.add(owner.id);owner=registry.resources.find(x=>x.id===owner!.id)?.owner;}}
+ if(registry.migration){const m=registry.migration;if(!record(m)||m.version!==1||!record(m.sourceGraph)||m.sourceGraph.version!==1||!Array.isArray(m.conflicts)||!Array.isArray(m.notes)||m.notes.some(n=>typeof n!=='string'))errors.push('Invalid migration recovery ledger.');else for(const c of m.conflicts)if(!record(c)||!validResourceId(c.id)||!['possible-duplicate','placement','inline-security-group','unresolved-reference'].includes(c.kind)||typeof c.message!=='string'||!Array.isArray(c.resourceIds)||c.resourceIds.some(id=>typeof id!=='string')||!['unresolved','kept-separate','resolved'].includes(c.status)||c.candidates!==undefined&&(!Array.isArray(c.candidates)||c.candidates.some(ref=>resourceRefErrors(ref).length)))errors.push('Invalid migration conflict.');}
+ return [...new Set(errors)];
+}
+export function resourceResolutionIssues(registry:ResourceRegistry):{id:string;path:string;status:'missing'|'incompatible'|'external';message:string}[]{
+ const issues:{id:string;path:string;status:'missing'|'incompatible'|'external';message:string}[]=[];
+ const visit=(id:string,value:unknown,prefix='')=>{for(const {ref,path}of resourceReferences(value,prefix)){const result=resolveResource(registry,ref);if(result.status!=='local')issues.push({id,path,status:result.status,message:result.status==='external'?'External reference: existence and context are not verified.':result.status==='missing'?'Referenced local resource is missing.':'Reference kind does not match the local resource.'});}};
+ for(const r of registry.resources){visit(r.id,r.owner,'owner');visit(r.id,r.values,'values');}for(const [id,b]of Object.entries(registry.serviceBindings))visit(id,b);for(const [id,ref]of Object.entries(registry.frameBindings))visit(id,ref,'frameBinding');return issues;
+}
+export function findResourceUsages(registry:ResourceRegistry,resourceId:string):ResourceUsage[]{
+ const uses:ResourceUsage[]=[];const visit=(subject:ResourceUsage['subject'],id:string,label:string,value:unknown,path='')=>{for(const entry of resourceReferences(value,path))if(entry.ref.type==='local'&&entry.ref.id===resourceId)uses.push({subject,id,label,path:entry.path});};
+ for(const r of registry.resources){visit('resource',r.id,r.name,r.owner,'owner');visit('resource',r.id,r.name,r.values,'values');}for(const [id,b]of Object.entries(registry.serviceBindings))visit('service',id,id,b);for(const [id,ref]of Object.entries(registry.frameBindings))visit('frame',id,id,ref,'resource');return uses;
+}
+function rewriteReferences(value:any,id:string,replacement:ResourceRef|undefined):any{
+ if(isResourceRef(value))return value.type==='local'&&value.id===id?replacement?structuredClone(replacement):undefined:value;
+ if(Array.isArray(value))return value.map(v=>rewriteReferences(v,id,replacement)).filter(v=>v!==undefined);
+ if(record(value))return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,rewriteReferences(v,id,replacement)]).filter(([,v])=>v!==undefined));return value;
+}
+export function deleteRegistryResource(input:ResourceRegistry,id:string,mode:'unlink'|'remap'|'cancel',replacement?:ResourceRef):ResourceRegistry{
+ const registry=structuredClone(input),resource=registry.resources.find(r=>r.id===id);if(!resource)throw new Error('Resource no longer exists.');if(mode==='cancel')return registry;
+ if(mode==='remap'&&(!replacement||resourceRefErrors(replacement).length||replacement.kind!==resource.kind||replacement.type==='local'&&(replacement.id===id||resolveResource(registry,replacement).status!=='local')))throw new Error('Choose another compatible resource before remapping.');
+ registry.resources=registry.resources.filter(r=>r.id!==id).map(r=>rewriteReferences(r,id,mode==='remap'?replacement:undefined));registry.serviceBindings=rewriteReferences(registry.serviceBindings,id,mode==='remap'?replacement:undefined);registry.frameBindings=rewriteReferences(registry.frameBindings,id,mode==='remap'?replacement:undefined);return registry;
+}
+export function upsertRegistryResource(input:ResourceRegistry,resource:CanonicalResource):ResourceRegistry{
+ const registry=structuredClone(input),old=registry.resources.find(r=>r.id===resource.id);if(old&&old.kind!==resource.kind)throw new Error('Resource kind is immutable. Create a new resource and remap its uses.');registry.resources=[...registry.resources.filter(r=>r.id!==resource.id),structuredClone(resource)];return registry;
+}
+export function cloneRegistryResource(input:ResourceRegistry,id:string,newId:string):ResourceRegistry{
+ const old=input.resources.find(r=>r.id===id);if(!old||!validResourceId(newId)||input.resources.some(r=>r.id===newId))throw new Error('Clone needs an existing resource and a new unique ID.');const copy={...structuredClone(old),id:newId,name:(old.name+' copy').slice(0,120)};delete copy.sourceKey;copy.values=rewriteReferences(copy.values,id,localResourceRef(copy));return {...structuredClone(input),resources:[...structuredClone(input.resources),copy]};
+}
+export function setServiceResourceBinding(input:ResourceRegistry,nodeId:string,binding:ResourceRegistry['serviceBindings'][string]):ResourceRegistry{return {...structuredClone(input),serviceBindings:{...structuredClone(input.serviceBindings),[nodeId]:{...emptyServiceBinding(),...structuredClone(binding)}}};}
+export function resourceValuesForLegacy(value:JsonValue):JsonValue {if(isResourceRef(value))return value.id;if(Array.isArray(value))return value.map(resourceValuesForLegacy);if(record(value))return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,resourceValuesForLegacy(v)]));return value;}

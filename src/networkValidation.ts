@@ -1,3 +1,5 @@
+import {canonicalNetworkFindings} from './resourceProjection';
+import {resourceVpc} from './resourceRegistry';
 // Diagnostic rule IDs are persistent. Add new IDs; never renumber existing producers.
 import type {NetworkTopology} from './networkTopology';
 import type {ConfigurationFinding,JsonValue} from './configurationTypes';
@@ -43,6 +45,8 @@ export function cidrError(value:unknown,scope:'vpc'|'subnet'|'peer'='peer'):stri
  }
 }
 export function ownerVpc(t:NetworkTopology,id:string|undefined):string|undefined {
+ if(t.registry){if(!id)return;const registry=t.registry,resource=registry.resources.find(r=>r.id===id),binding=registry.serviceBindings[id],ref=resource?{type:'local' as const,id:resource.id,kind:resource.kind}:binding?.vpc??binding?.subnets[0]??registry.frameBindings[id];const vpc=resourceVpc(registry,ref);return vpc?.type==='local'?vpc.id:undefined;}
+
  const visited=new Set<string>();while(id&&!visited.has(id)){visited.add(id);const frame=t.frames.find(f=>f.id===id);if(!frame)return;if(frame.kind==='vpc')return frame.id;id=frame.parentId;}
 }
 const records=(value:unknown):Record<string,JsonValue>[]=>Array.isArray(value)?value.filter(x=>!!x&&typeof x==='object'&&!Array.isArray(x)):[];
@@ -64,7 +68,7 @@ export function trafficRuleErrors(row:Record<string,JsonValue>,nacl=false):strin
  return [...new Set(errors)];
 }
 export function networkFindings(t:NetworkTopology|undefined,nodes:{id:string;service:string;label:string}[]=[]):ConfigurationFinding[]{
- if(!t)return [];const out:ConfigurationFinding[]=[];
+ if(!t)return [];if(t.version===2&&t.registry)return canonicalNetworkFindings(t,nodes);const out:ConfigurationFinding[]=[];
  const add=(ruleId:string,field:string,detail:string,sourceUrl:string,level:ConfigurationFinding['level']='error',context?:JsonValue)=>out.push({ruleId,field,title:'Network configuration',detail,sourceUrl,level,category:'design',...(context!==undefined?{context}:{})});
  for(const f of t.frames){
   if(f.cidr){const issue=cidrError(f.cidr,f.kind==='vpc'?'vpc':f.kind==='subnet'?'subnet':'peer');if(issue)add('network.001',f.id,f.name+': '+issue,f.kind==='vpc'?networkEvidence.vpc:networkEvidence.subnet);}
