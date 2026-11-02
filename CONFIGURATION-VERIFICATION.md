@@ -1,5 +1,22 @@
 # Configuration schema2 handoff
 
+## Light, Dark and System appearance — 2026-11-02
+
+- Added a labeled top-bar theme selector with browser-local persistence, OS-theme
+  tracking in System mode and cross-tab preference updates. Storage failures do
+  not prevent switching in the current tab.
+- A small startup script applies the preference before app rendering. Dark palette
+  covers shared surfaces, canvas, forms, popups and status colors. CodeMirror
+  switches its theme compartment without recreating the editor document.
+- 681 tests across 53 files passed; frontend TypeScript/build passed. Theme tests
+  cover persistence/remount, system changes, explicit override and denied storage.
+- Local real-browser verification: selected Dark, inspected navigation/catalog/
+  canvas, reloaded and confirmed both the selector and root remained Dark. A later
+  browser-tool failure prevented completing the additional editor UI walkthrough;
+  no full browser verification of editor theme switching is claimed.
+- The existing bundle-size advisory remains. No diagram or AWS configuration
+  schema changed for this appearance feature.
+
 ## Compact help controls and agentic expansion plan — 2026-11-02
 
 - Shared ContextHelp now uses a 16px Lucide icon inside a 24px desktop target

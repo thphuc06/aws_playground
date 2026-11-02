@@ -1,5 +1,9 @@
 # Current DVA-C03 assistant update
 
+Appearance: use **Theme → Light / Dark / System** on the top bar. The preference
+persists in this browser. System follows OS changes; canvas, configuration panels
+and the JSON/YAML editor share the selected appearance.
+
 Delivery preference and release checks: [AGENTS.md](AGENTS.md).
 Next implementation batches from browser/code observations:
 [CONFIGURATION-NEXT-PLAN.md](CONFIGURATION-NEXT-PLAN.md).

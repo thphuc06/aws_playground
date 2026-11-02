@@ -1,0 +1,11 @@
+// @vitest-environment jsdom
+import React from 'react';
+import {afterEach,beforeEach,expect,it,vi} from 'vitest';
+import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
+import ThemeControl,{themeStorageKey} from './ThemeControl';
+let dark=false;const listeners=new Set<()=>void>();
+beforeEach(()=>{dark=false;listeners.clear();localStorage.clear();delete document.documentElement.dataset.theme;vi.stubGlobal('matchMedia',()=>({get matches(){return dark},addEventListener:(_:string,cb:()=>void)=>listeners.add(cb),removeEventListener:(_:string,cb:()=>void)=>listeners.delete(cb)}));});
+afterEach(()=>{cleanup();vi.unstubAllGlobals();vi.restoreAllMocks()});
+it('applies explicit themes and restores the saved preference on remount',()=>{const first=render(<ThemeControl/>);fireEvent.change(screen.getByLabelText('Color theme'),{target:{value:'dark'}});expect(document.documentElement.dataset.theme).toBe('dark');expect(localStorage.getItem(themeStorageKey)).toBe('dark');first.unmount();render(<ThemeControl/>);expect((screen.getByLabelText('Color theme') as HTMLSelectElement).value).toBe('dark');fireEvent.change(screen.getByLabelText('Color theme'),{target:{value:'light'}});expect(document.documentElement.dataset.theme).toBe('light')});
+it('follows system changes only when System is selected and releases its listener',()=>{const view=render(<ThemeControl/>);act(()=>{dark=true;listeners.forEach(cb=>cb())});expect(document.documentElement.dataset.theme).toBe('dark');fireEvent.change(screen.getByLabelText('Color theme'),{target:{value:'light'}});act(()=>{listeners.forEach(cb=>cb())});expect(document.documentElement.dataset.theme).toBe('light');fireEvent.change(screen.getByLabelText('Color theme'),{target:{value:'system'}});expect(document.documentElement.dataset.theme).toBe('dark');view.unmount();expect(listeners.size).toBe(0)});
+it('keeps the selector usable when browser storage is unavailable',()=>{vi.spyOn(Storage.prototype,'getItem').mockImplementation(()=>{throw new Error('blocked')});vi.spyOn(Storage.prototype,'setItem').mockImplementation(()=>{throw new Error('quota')});render(<ThemeControl/>);fireEvent.change(screen.getByLabelText('Color theme'),{target:{value:'dark'}});expect(document.documentElement.dataset.theme).toBe('dark')});

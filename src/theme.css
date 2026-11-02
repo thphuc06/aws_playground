@@ -1,0 +1,45 @@
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #111820;
+  --surface: #18222e;
+  --surface-subtle: #1d2937;
+  --surface-hover: #253446;
+  --surface-selected: #304258;
+  --text: #e4eaf1;
+  --text-secondary: #b3c0d0;
+  --text-muted: #9baac0;
+  --border: #36475c;
+  --border-strong: #73859c;
+  --accent: #b25816;
+  --accent-text: #f5b87e;
+  --accent-soft: #3a2b21;
+  --accent-line: #c88b55;
+  --success-text: #8fd7ad;
+  --success-soft: #19382e;
+  --success-line: #5e9e7b;
+  --danger-text: #ffb5b9;
+  --danger-soft: #46272e;
+  --danger-line: #c07981;
+  --info-text: #99caff;
+  --info-soft: #203750;
+  --info-line: #719cc8;
+  --violet-text: #cfb1f4;
+  --violet-soft: #352b47;
+  --violet-line: #a085bf;
+  --focus: #90c3ff;
+  --canvas: #131c27;
+  --canvas-dot: #35465d;
+  --edge: #a0b2c9;
+  --shadow: rgb(0 0 0 / 24%);
+  --scrim: rgb(0 0 0 / 60%);
+  --emphasis: rgb(245 184 126 / 22%);
+}
+:root[data-theme="dark"] .react-flow__node-networkFrame {background:rgb(96 128 168 / 8%)}
+.theme-control {display:inline-flex;align-items:center;gap:6px;flex:none;margin:0;padding:4px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-subtle);color:var(--text-secondary);font-size:12px;white-space:nowrap}
+.theme-control>svg {flex:none}
+.theme-control .theme-label {font-size:12px}
+.theme-control select {min-height:30px;width:auto;max-width:none;border:0;border-radius:4px;padding:3px 20px 3px 3px;background-color:transparent;color:var(--text);font-size:12px;cursor:pointer}
+.theme-control select option {background:var(--surface);color:var(--text)}
+.topbar .search-wrap {min-width:0}
+@media(max-width:1250px){.topbar{gap:12px;padding-inline:18px}.topbar .local-badge{display:none}.theme-control .theme-label{display:none}}
+@media(max-width:720px){.topbar{height:auto;min-height:60px;flex-wrap:wrap;gap:8px;padding:10px 12px}.topbar .breadcrumb{flex:1;min-width:0}.topbar .theme-control{margin-left:auto}.topbar .search-wrap{order:4;flex-basis:100%;width:100%;max-width:none;margin:0}.theme-control select{min-height:34px}}
