@@ -43,4 +43,17 @@ describe('portable workspace backup',()=>{
  it('checks file size before parsing and rejects missing referenced nodes',()=>{
   expect(()=>prepareWorkspaceImport(' '.repeat(ARCHIVE_MAX_BYTES+1))).toThrow('32 MiB');const w=fixture();w.original.nodes=[];expect(()=>prepareWorkspaceImport(JSON.stringify(w))).toThrow();
  });
+ it.each([
+  ['null activity source',{sources:[null]}],
+  ['object source title',{sources:[{id:'s',title:{text:'bad'},url:'https://docs.aws.amazon.com/',verified:'2026-11-02',kind:'live'}]}],
+  ['unsafe source URL',{sources:[{id:'s',title:'Reference',url:'javascript:alert(1)',verified:'2026-11-02',kind:'live'}]}],
+  ['invalid source URL',{sources:[{id:'s',title:'Reference',url:'not a URL',verified:'2026-11-02',kind:'live'}]}],
+  ['null graph counts',{graph:null}],
+  ['object graph count',{graph:{nodes:{count:1},edges:0}}],
+  ['negative graph count',{graph:{nodes:-1,edges:0}}],
+  ['nontext activity detail',{details:[{message:'bad'}]}],
+ ])('rejects %s before an archive can be imported',(_name,patch)=>{
+  const archive=createWorkspaceArchive(fixture());archive.facets.workspace.proposal={mode:'design',baseFingerprint:archive.facets.workspace.draftBase!,summary:'Historical report',assumptions:[],findings:[],sources:[],draft:archive.facets.workspace.draft,usage:{inputTokens:0,outputTokens:0,responses:0,searches:0,estimatedUsd:0,incomplete:false},activity:[{id:'a',title:'Read documentation',status:'completed',startedAt:1,finishedAt:2,details:[],...patch} as any]};
+  expect(()=>prepareWorkspaceImport(JSON.stringify(archive))).toThrow('Saved report cannot be read safely');
+ });
 });

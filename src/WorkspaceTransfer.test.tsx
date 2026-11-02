@@ -6,6 +6,7 @@ import {render,screen,fireEvent,waitFor,cleanup} from '@testing-library/react';
 import ArchitectureStudio from './ArchitectureStudio';
 import WorkspaceTransfer from './WorkspaceTransfer';
 import {createWorkspace,workspaceKey} from './architectureWorkspace';
+import {fingerprintGraph} from './architectureReview';
 import {createWorkspaceArchive,serializeWorkspaceArchive} from './workspaceArchive';
 import {openLocalRepository} from './workspaceDatabase';
 import {ACTIVE_WORKSPACE_KEY,listWorkspaceCopies} from './workspaceRepository';
@@ -32,4 +33,15 @@ it('rejects an invalid import in preview without invoking the write callback',as
 });
 it('reports aggregate dirty state to the outer learning-route guard',async()=>{
  const dirty=vi.fn();render(<ArchitectureStudio onConfigurationDirtyChange={dirty} Canvas={({onConfigurationDirtyChange})=><button onClick={()=>onConfigurationDirtyChange?.(true)}>Start unsaved edit</button>}/>);await screen.findByText('Start unsaved edit');fireEvent.click(screen.getByText('Start unsaved edit'));expect(dirty).toHaveBeenLastCalledWith(true);expect((screen.getByLabelText('Choose workspace backup') as HTMLInputElement).disabled).toBe(true);
+});
+it('default report-free export restores a visible editable independent draft without adoption controls',async()=>{
+ const w=createWorkspace();w.original.nodes=[{id:'worker',service:'lambda',label:'Original worker',position:{x:0,y:0}}];w.draft=structuredClone(w.original);w.draft.nodes[0].label='Restored draft worker';w.draftBase=fingerprintGraph(w.original);
+ const archive=createWorkspaceArchive(w);expect(archive.facets.workspace.proposal).toBeNull();
+ render(<ArchitectureStudio Canvas={({title,value,onChange})=><div><p>{title??'Original architecture'}</p>{value?.nodes.map(n=><span key={n.id}>{n.label}</span>)}{title==='Saved draft — editable'&&<button onClick={()=>onChange?.({...value!,nodes:value!.nodes.map(n=>({...n,label:'Edited recovered draft'}))})}>Edit saved draft fixture</button>}</div>}/>);
+ await waitFor(()=>expect((screen.getByLabelText('Choose workspace backup') as HTMLInputElement).disabled).toBe(false));fireEvent.change(screen.getByLabelText('Choose workspace backup'),{target:{files:[new File([serializeWorkspaceArchive(archive)],'without-reports.json',{type:'application/json'})]}});await screen.findByRole('button',{name:'Import as new workspace'});fireEvent.click(screen.getByRole('button',{name:'Import as new workspace'}));await screen.findByText('Restored draft worker');fireEvent.click(screen.getByText('✦ AI review & proposal'));
+ expect(screen.getByRole('region',{name:'Saved architecture draft'})).toBeDefined();expect(screen.queryByRole('button',{name:/Use this (proposal|layout)/})).toBeNull();fireEvent.click(screen.getByRole('button',{name:'Edit saved draft fixture'}));const db=await openLocalRepository();try{await waitFor(async()=>{const active=await db.read<{id:string}>(ACTIVE_WORKSPACE_KEY);const record=await db.read<{workspace:typeof w}>('workspace:'+active!.value.id);expect(record?.value.workspace.draft?.nodes[0].label).toBe('Edited recovered draft');expect(record?.value.workspace.original.nodes[0].label).toBe('Original worker');});}finally{db.close();}
+});
+it('rejects malformed nested activity during file preview before creating any persistent workspace',async()=>{
+ const archive=createWorkspaceArchive(createWorkspace());archive.facets.workspace.proposal={mode:'design',baseFingerprint:fingerprintGraph(archive.facets.workspace.original),summary:'Malformed imported report',assumptions:[],findings:[],sources:[],draft:null,usage:{inputTokens:0,outputTokens:0,responses:0,searches:0,estimatedUsd:0,incomplete:false},activity:[{id:'a',title:'Bad activity',status:'completed',startedAt:1,details:[],sources:[null]} as any]};
+ render(<ArchitectureStudio Canvas={()=> <div>Working original</div>}/>);await screen.findByText('Working original');const db=await openLocalRepository();try{const before=await db.read(ACTIVE_WORKSPACE_KEY);fireEvent.change(screen.getByLabelText('Choose workspace backup'),{target:{files:[new File([JSON.stringify(archive)],'malformed-report.json',{type:'application/json'})]}});await screen.findByText(/Saved report cannot be read safely/);expect(screen.queryByRole('button',{name:'Import as new workspace'})).toBeNull();expect(await listWorkspaceCopies(db)).toHaveLength(1);expect(await db.read(ACTIVE_WORKSPACE_KEY)).toEqual(before);}finally{db.close();}
 });

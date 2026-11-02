@@ -5,21 +5,45 @@ export const workspaceKey='aws-playground-workspace-v3',previousWorkspaceKey='aw
 export const emptyGraph=():Graph=>({version:1,nodes:[],edges:[],configs:{}});
 export interface ArchitectureWorkspace {checkpoint?:AssistantCheckpoint;lastAttempt?:{status:'running'|'succeeded'|'failed'|'canceled';purpose:string;startedAt:string;error?:string};version:3;original:Graph;draft:Graph|null;draftBase:string|null;purpose:string;priority:Priority;protectedNodeIds:string[];review:AssistantResult|null;proposal:AssistantResult|null}
 export function createWorkspace(original=emptyGraph()):ArchitectureWorkspace{return {version:3,original,draft:null,draftBase:null,purpose:'',priority:'balanced',protectedNodeIds:original.nodes.filter(n=>['ec2','lambda','ecs','eks','rds','aurora','dynamodb','s3','elasticache','opensearch'].includes(n.service)).map(n=>n.id),review:null,proposal:null}}
+const object=(v:unknown):v is Record<string,any>=>!!v&&typeof v==='object'&&!Array.isArray(v);
 const strings=(v:unknown):v is string[]=>Array.isArray(v)&&v.every(x=>typeof x==='string');
-const usageValid=(v:any)=>v&&['inputTokens','outputTokens','responses','searches','estimatedUsd'].every(k=>typeof v[k]==='number'&&Number.isFinite(v[k])&&v[k]>=0)&&typeof v.incomplete==='boolean'&&(v.toolCalls===undefined||typeof v.toolCalls==='number'&&Number.isFinite(v.toolCalls)&&v.toolCalls>=0);
-/** Stored/imported evidence is untrusted data too; validate every collection rendered by the report. */
-function validateStoredReport(r:any){
+const count=(v:unknown)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0;
+const usageValid=(v:unknown)=>object(v)&&['inputTokens','outputTokens','responses','searches'].every(k=>count(v[k]))&&typeof v.estimatedUsd==='number'&&Number.isFinite(v.estimatedUsd)&&v.estimatedUsd>=0&&typeof v.incomplete==='boolean'&&(v.toolCalls===undefined||count(v.toolCalls));
+function sourceValid(value:unknown):boolean {
+ if(!object(value)||!['id','title','url','verified'].every(k=>typeof value[k]==='string')||!['curated','live'].includes(value.kind))return false;
+ try{const url=new URL(value.url);return url.protocol==='https:'&&!url.username&&!url.password;}catch{return false;}
+}
+const sourcesValid=(value:unknown)=>Array.isArray(value)&&value.every(sourceValid);
+function activityValid(value:unknown):boolean {
+ if(!object(value)||typeof value.id!=='string'||typeof value.title!=='string'||!strings(value.details)||!['running','completed','failed','interrupted'].includes(value.status)||typeof value.startedAt!=='number'||!Number.isFinite(value.startedAt)||value.startedAt<0)return false;
+ if(value.finishedAt!==undefined&&(typeof value.finishedAt!=='number'||!Number.isFinite(value.finishedAt)||value.finishedAt<value.startedAt))return false;
+ if(value.sources!==undefined&&!sourcesValid(value.sources))return false;
+ if(value.graph!==undefined&&(!object(value.graph)||!count(value.graph.nodes)||!count(value.graph.edges)))return false;
+ return true;
+}
+function evidenceValid(value:unknown):boolean {
+ return Array.isArray(value)&&value.every(e=>object(e)&&['node','edge','frame','resource','role','policy'].includes(e.kind)&&typeof e.id==='string'&&strings(e.fields));
+}
+function completionValid(c:unknown):boolean {
+ return object(c)&&['gaps','needs-verification','addressed'].includes(c.status)&&typeof c.graphFingerprint==='string'
+  &&Array.isArray(c.requirements)&&c.requirements.every((x:unknown)=>object(x)&&typeof x.id==='string'&&typeof x.text==='string')
+  &&Array.isArray(c.checks)&&c.checks.every((x:unknown)=>object(x)&&typeof x.requirementId==='string'&&typeof x.explanation==='string'&&['implemented','partial','missing','needs-verification'].includes(x.status)&&evidenceValid(x.evidence))
+  &&Array.isArray(c.emptyFrames)&&c.emptyFrames.every((x:unknown)=>object(x)&&typeof x.frameId==='string'&&typeof x.explanation==='string'&&['intentional','represented-by-service','missing'].includes(x.disposition)&&evidenceValid(x.evidence))
+  &&Array.isArray(c.configuration)&&c.configuration.every((x:unknown)=>object(x)&&typeof x.nodeId==='string'&&typeof x.label==='string'&&strings(x.configuredFields)&&strings(x.unspecifiedFields));
+}
+/** Every nested collection rendered by a persisted report is checked before import/storage. */
+function validateStoredReport(r:unknown){
  if(r===null)return;
- const evidence=(v:any)=>Array.isArray(v)&&v.every(e=>e&&['node','edge','frame','resource','role','policy'].includes(e.kind)&&typeof e.id==='string'&&strings(e.fields));
- const bad=()=>{throw new Error('Saved report cannot be read safely. Export the original bytes before repairing it.');};
- if(!r||!['review','design'].includes(r.mode)||typeof r.baseFingerprint!=='string'||typeof r.summary!=='string'||!strings(r.assumptions)||!Array.isArray(r.findings)||!Array.isArray(r.sources)||!usageValid(r.usage))bad();
- if(r.findings.some((f:any)=>!f||!strings(f.nodeIds)||!strings(f.edgeIds)||!strings(f.sourceIds)||!['info','warning','error'].includes(f.severity)||typeof f.title!=='string'||typeof f.detail!=='string'||f.scope!==undefined&&!['current','proposal'].includes(f.scope)))bad();
- if(r.sources.some((s:any)=>!s||!['id','title','url','verified'].every(k=>typeof s[k]==='string')||!['curated','live'].includes(s.kind)))bad();
+ const bad=():never=>{throw new Error('Saved report cannot be read safely. Export the original bytes before repairing it.');};
+ if(!object(r))return bad();
+ if(!['review','design'].includes(r.mode)||typeof r.baseFingerprint!=='string'||typeof r.summary!=='string'||!strings(r.assumptions)||!Array.isArray(r.findings)||!sourcesValid(r.sources)||!usageValid(r.usage))bad();
+ if(r.findings.some((f:unknown)=>!object(f)||!strings(f.nodeIds)||!strings(f.edgeIds)||!strings(f.sourceIds)||!['info','warning','error'].includes(f.severity)||typeof f.title!=='string'||typeof f.detail!=='string'||f.scope!==undefined&&!['current','proposal'].includes(f.scope)))bad();
  if(r.draft!==null&&!validateReviewGraph(r.draft,'stored-editable').ok)bad();
- if(r.requestContext&&(!['purpose','completedAt'].every(k=>typeof r.requestContext[k]==='string')||!['balanced','simplicity','cost','reliability'].includes(r.requestContext.priority)||!strings(r.requestContext.protectedNodeIds)))bad();
- if(r.serviceExplanations!==undefined&&(!Array.isArray(r.serviceExplanations)||r.serviceExplanations.some((e:any)=>!e||!['nodeId','role','reason'].every(k=>typeof e[k]==='string')||!strings(e.configurationNotes)||!strings(e.sourceIds))))bad();
- if(r.activity!==undefined&&(!Array.isArray(r.activity)||r.activity.some((a:any)=>!a||typeof a.id!=='string'||typeof a.title!=='string'||!strings(a.details)||!['running','completed','failed','interrupted'].includes(a.status)||!Number.isFinite(a.startedAt)||a.finishedAt!==undefined&&!Number.isFinite(a.finishedAt)||a.sources!==undefined&&!Array.isArray(a.sources))))bad();
- const c=r.completion;if(c&&(!['gaps','needs-verification','addressed'].includes(c.status)||typeof c.graphFingerprint!=='string'||!Array.isArray(c.requirements)||c.requirements.some((x:any)=>!x||typeof x.id!=='string'||typeof x.text!=='string')||!Array.isArray(c.checks)||c.checks.some((x:any)=>!x||typeof x.requirementId!=='string'||typeof x.explanation!=='string'||!['implemented','partial','missing','needs-verification'].includes(x.status)||!evidence(x.evidence))||!Array.isArray(c.emptyFrames)||c.emptyFrames.some((x:any)=>!x||typeof x.frameId!=='string'||typeof x.explanation!=='string'||!['intentional','represented-by-service','missing'].includes(x.disposition)||!evidence(x.evidence))||!Array.isArray(c.configuration)||c.configuration.some((x:any)=>!x||typeof x.nodeId!=='string'||typeof x.label!=='string'||!strings(x.configuredFields)||!strings(x.unspecifiedFields))))bad();
+ if(r.requestContext!==undefined&&(!object(r.requestContext)||!['purpose','completedAt'].every(k=>typeof r.requestContext[k]==='string')||!['balanced','simplicity','cost','reliability'].includes(r.requestContext.priority)||!strings(r.requestContext.protectedNodeIds)))bad();
+ if(r.proposalStatus!==undefined&&!['changed','unchanged','edit_failed'].includes(r.proposalStatus))bad();
+ if(r.serviceExplanations!==undefined&&(!Array.isArray(r.serviceExplanations)||r.serviceExplanations.some((e:unknown)=>!object(e)||!['nodeId','role','reason'].every(k=>typeof e[k]==='string')||!strings(e.configurationNotes)||!strings(e.sourceIds))))bad();
+ if(r.activity!==undefined&&(!Array.isArray(r.activity)||!r.activity.every(activityValid)))bad();
+ if(r.completion!==undefined&&!completionValid(r.completion))bad();
 }
 export function readWorkspace(storage:Pick<Storage,'getItem'|'setItem'>):ArchitectureWorkspace{
  const saved=storage.getItem(workspaceKey)??storage.getItem(previousWorkspaceKey);

@@ -72,3 +72,18 @@ Recovery copies are not automatically pruned. If IndexedDB is absent, legacy
 browser storage remains usable and export is available, while portable import
 requires transactional storage. Browser eviction/clearing can still remove local
 data; downloaded backups are the portable recovery path.
+
+## Independent-review follow-up — 2026-11-03
+
+- A default archive omits report bodies but retains the independent draft. The
+  restored draft now renders outside the report guard and remains editable; its
+  adoption controls still require a saved design proposal with the existing
+  freshness/review gates.
+- Historical report validation now checks nested activity source records and safe
+  HTTPS URLs, graph counts, timestamps, details, optional metadata and completion
+  collections. Malformed imported evidence is rejected in preview before a write.
+  Existing malformed records open the raw recovery path without overwriting them.
+- Targeted verification: 59 tests passed, including export without reports →
+  import → edit independent draft, `activity.sources: [null]` rejection before
+  persistence, and recovery of an already-persisted malformed report. Typecheck
+  was rerun. The full suite was not repeated for this focused correction.
