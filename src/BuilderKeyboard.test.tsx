@@ -1,0 +1,11 @@
+// @vitest-environment jsdom
+import React,{useState} from 'react';
+import {it,expect,vi,beforeEach,afterEach} from 'vitest';
+import {render,screen,fireEvent,cleanup} from '@testing-library/react';
+import type {Graph} from './architectureReview';
+vi.mock('./ArchitectureStudio',()=>({default:({Canvas,...props}:any)=><Canvas {...props}/>}));
+vi.mock('@xyflow/react',()=>({ReactFlowProvider:({children}:any)=>children,ReactFlow:({nodes,onNodeClick,children}:any)=><div>{nodes.map((n:any)=><button key={n.id} onClick={()=>onNodeClick({},n)}>{n.type==='networkFrame'?n.data.label:n.id}</button>)}{children}</div>,useViewport:()=>({zoom:1,x:0,y:0}),useReactFlow:()=>({fitView:()=>Promise.resolve(),screenToFlowPosition:(p:any)=>p}),NodeResizer:()=>null,Background:()=>null,Controls:()=>null,MarkerType:{ArrowClosed:'arrowclosed'},Position:{Right:'right',Left:'left'}}));
+import Builder from './Builder';
+beforeEach(()=>vi.stubGlobal('matchMedia',()=>({matches:false,addEventListener:()=>{},removeEventListener:()=>{}})));
+afterEach(()=>{cleanup();localStorage.clear();vi.unstubAllGlobals()});
+it.each(['Backspace','Delete'])('removes the selected frame with %s while retaining its services and nested frames',key=>{let latest:Graph;function Harness(){const [g,set]=useState<Graph>({version:1,nodes:[{id:'app',service:'ec2',label:'App',position:{x:80,y:100}}],edges:[],configs:{},network:{version:1,frames:[{id:'vpc',kind:'vpc',name:'Outer frame',x:0,y:0,width:700,height:500},{id:'subnet',kind:'subnet',name:'Inner frame',x:30,y:60,width:300,height:250,parentId:'vpc'}],membership:{app:'subnet'},resources:[]}});latest=g;return <Builder value={g} onChange={set}/>;}render(<Harness/>);fireEvent.click(screen.getByRole('button',{name:'Outer frame'}));const canvas=screen.getByLabelText(/Editable architecture canvas/);expect(document.activeElement).toBe(canvas);fireEvent.keyDown(screen.getByLabelText('Name'),{key});expect(latest!.network!.frames).toHaveLength(2);fireEvent.keyDown(canvas,{key});expect(latest!.network!.frames.map(f=>f.id)).toEqual(['subnet']);expect(latest!.network!.frames[0].parentId).toBeUndefined();expect(latest!.nodes[0].position).toEqual({x:80,y:100});expect(latest!.network!.membership.app).toBe('subnet')});

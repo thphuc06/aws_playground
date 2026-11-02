@@ -14,3 +14,7 @@ Validation:563 tests pass across39 files, including focus isolation/restore, col
 Publication: GitHub main and existing owner-private Site. This is a frontend update; no new environment variables or manual backend deployment is required.
 
 The Render origin is preconfigured; the UI checks status automatically and offers Reconnect on failure. No backend URL or token input is shown. Auto-connect sends no graph; explicit consent is still required for a review request.
+
+Interaction update: frame headers use grab/grabbing cursors and a move icon; edge/corner resize controls appear on hover or selection, with larger hit regions. Service connection targets keep28-screen-pixel hit regions and36-screen-pixel snapping radius across zoom levels. Existing self/duplicate/frame connection rejection is retained. Click-to-connect remains available.
+
+Backspace/Delete now remove a selected frame and preserve its member services and nested frames. Input fields retain normal editing. Two JSDOM keyboard regressions exercise both keys and verify content preservation; React Flow is mocked, so they do not establish real pointer/drag hit accuracy.

@@ -1,3 +1,4 @@
+import {Move} from 'lucide-react';
 import {configurationFields,migrateConfiguration} from './configurationRegistry';
 import {useState,useEffect} from 'react';
 import {NodeResizer,type NodeProps} from '@xyflow/react';
@@ -8,7 +9,7 @@ import PolicyLibraryEditor from './PolicyEditor';
 import {emptySecurityLibrary} from './configurationTypes';
 import {validateSecurityLibrary} from './securityLibrary';
 import './network.css';
-export function NetworkFrameNode({data,selected}:NodeProps){return <><NodeResizer minWidth={220} minHeight={160} isVisible={selected}/><div className="network-frame-title"><b>{String(data.label)}</b><small>{String(data.kind)} {String(data.cidr??'')}</small></div></>}
+export function NetworkFrameNode({data}:NodeProps){return <><NodeResizer minWidth={220} minHeight={160} autoScale={true} handleClassName="frame-resize-handle" lineClassName="frame-resize-line" handleStyle={{width:16,height:16,borderRadius:4}}/><div className="network-frame-title" title="Drag header to move frame and contents. Drag an edge or corner to resize."><Move className="frame-move-icon" size={16} aria-hidden="true"/><b>{String(data.label)}</b><small>{String(data.kind)} {String(data.cidr??'')}</small></div></>}
 export const networkNodeTypes={networkFrame:NetworkFrameNode};
 const uid=()=> 'network-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
 export default function NetworkPanel({graph,onChange,selectedFrame,onSelectFrame,onDirtyChange,editorOnly=false,resourceRequest}:{graph:Graph;onChange:(g:Graph)=>void;selectedFrame:string;onSelectFrame:(id:string)=>void;onDirtyChange?:(dirty:boolean)=>void;editorOnly?:boolean;resourceRequest?:{kind:string;id?:string;nonce:number}|null}){
