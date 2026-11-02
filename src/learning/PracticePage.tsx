@@ -3,7 +3,7 @@ import {chapters} from '../content';
 import {openLocalRepository,type LocalRepository} from '../workspaceDatabase';
 import {questionBank} from './questionRegistry';
 import {exportLearningBackup,parseLearningBackup,validateLearningProgress,LEARNING_BACKUP_LIMIT} from './learningBackup';
-import {loadLearningProgress,prepareLearningImport,saveLearningProgress,LEARNING_RECORD_KEY,notifyLearningProgressChanged,type LearningRecord} from './learningRepository';
+import {loadLearningProgress,prepareLearningImport,saveLearningProgress,LEARNING_RECORD_KEY,LEARNING_PROGRESS_CHANGED_EVENT,notifyLearningProgressChanged,type LearningRecord} from './learningRepository';
 import {LEGACY_PROGRESS_KEY,migrateLegacyProgress} from './progressMigration';
 import {emptyLearningProgress,type LearningExam,type LearningProgress,type PracticeMode} from './questionTypes';
 import {advanceSession,createLearningSession,eligibleQuestions,submitSessionAnswer,recordFeedbackExposure,revealSessionFeedback} from './sessionEngine';
@@ -25,11 +25,21 @@ export default function PracticePage({exam,onOpenChapter,initialChapter='',onCha
  const updateLocal=(next:LearningProgress)=>{data.current=next;setProgress(next);};
  useEffect(()=>{setChapter(chapters.some(c=>c.id===initialChapter&&(c.examVersions??['DVA-C02']).includes(exam))?initialChapter:'');setSessionId(null)},[exam,initialChapter]);
  useEffect(()=>{let mounted=true;let opened:LocalRepository|null=null;
-  (async()=>{try{opened=await repositoryFactory();if(!mounted){opened.close();return;}repository.current=opened;const loaded=await loadLearningProgress(opened,localStorage);if(!mounted)return;record.current=loaded;updateLocal(loaded.value);setMessage('Practice progress is saved in this browser.');}
+  (async()=>{try{opened=await repositoryFactory();if(!mounted){opened.close();return;}repository.current=opened;const loaded=await loadLearningProgress(opened,localStorage);if(!mounted)return;if(!record.current||loaded.revision>=record.current.revision){record.current=loaded;updateLocal(loaded.value);}setMessage('Practice progress is saved in this browser.');}
   catch(error){if(!mounted)return;recoveryBlocked.current=true;setStorageError(errorMessage(error,'Learning storage is unavailable.'));
    try{const existing=await opened?.read(LEARNING_RECORD_KEY);if(!mounted)return;if(existing){record.current=existing as LearningRecord;setRawRecovery(JSON.stringify(existing.value,null,2));}else{const raw=localStorage.getItem(LEGACY_PROGRESS_KEY);setRawRecovery(raw??'');if(raw)try{updateLocal(migrateLegacyProgress(raw));}catch{/* Preserve raw recovery without replacing it. */}}}catch{/* Storage is unavailable; temporary work still stays in memory. */}
   }finally{if(mounted)setLoading(false);}})();
-  return()=>{mounted=false;opened?.close();repository.current=null;};
+  const refreshClean=()=>{
+   if(unsaved.current||locked.current||!repository.current)return;
+   void repository.current.read(LEARNING_RECORD_KEY).then(latest=>{
+    if(!mounted||unsaved.current||locked.current||!latest||latest.revision<=(record.current?.revision??0))return;
+    const checked=validateLearningProgress(latest.value);
+    if(!checked.ok){setStorageError(checked.error);setRawRecovery(JSON.stringify(latest.value,null,2));recoveryBlocked.current=true;record.current=latest as LearningRecord;return;}
+    record.current={...latest,value:checked.value};updateLocal(checked.value);
+   }).catch(error=>{if(mounted)setStorageError(errorMessage(error,'Saved practice could not be refreshed.'));});
+  };
+  window.addEventListener(LEARNING_PROGRESS_CHANGED_EVENT,refreshClean);window.addEventListener('focus',refreshClean);
+  return()=>{mounted=false;opened?.close();repository.current=null;window.removeEventListener(LEARNING_PROGRESS_CHANGED_EVENT,refreshClean);window.removeEventListener('focus',refreshClean);};
  },[repositoryFactory]);
  const persist=async(next:LearningProgress)=>{
   if(locked.current)return;locked.current=true;markDirty(true);setBusy(true);updateLocal(next);

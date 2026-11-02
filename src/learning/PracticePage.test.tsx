@@ -5,7 +5,7 @@ import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {IDBFactory} from 'fake-indexeddb';
 import {openLocalRepository} from '../workspaceDatabase';
 import PracticePage from './PracticePage';
-import {LEARNING_RECORD_KEY,LEARNING_PROGRESS_CHANGED_EVENT} from './learningRepository';
+import {LEARNING_RECORD_KEY,LEARNING_PROGRESS_CHANGED_EVENT,saveLearningProgress} from './learningRepository';
 import {questionBank} from './questionRegistry';
 import {createLearningSession,submitSessionAnswer,advanceSession} from './sessionEngine';
 import {emptyLearningProgress} from './questionTypes';
@@ -39,6 +39,13 @@ it('lets the route owner accept or cancel a chapter change without changing the 
  const idb=new IDBFactory(),factory=()=>openLocalRepository(idb,'chapter-routing'),requested:string[]=[];
  const props={exam:'DVA-C03' as const,onOpenChapter:()=>{},repositoryFactory:factory,onChapterChange:(id:string)=>{requested.push(id);return false}};
  const view=render(<PracticePage {...props}/>);await screen.findByText('Practice progress is saved in this browser.');fireEvent.change(screen.getByLabelText('Chapter'),{target:{value:'dev-lambda'}});expect(requested).toEqual(['dev-lambda']);expect((screen.getByLabelText('Chapter') as HTMLSelectElement).value).toBe('');view.rerender(<PracticePage {...props} initialChapter="dev-lambda"/>);await waitFor(()=>expect((screen.getByLabelText('Chapter') as HTMLSelectElement).value).toBe('dev-lambda'));
+});
+it('refreshes clean practice after a bookmark write instead of failing the next session save',async()=>{
+ const idb=new IDBFactory(),factory=()=>openLocalRepository(idb,'page-reading-refresh');render(<PracticePage exam="DVA-C03" onOpenChapter={()=>{}} repositoryFactory={factory}/>);await screen.findByText('Practice progress is saved in this browser.');const repo=await factory(),current=(await repo.read<LearningProgress>(LEARNING_RECORD_KEY))!;
+ await saveLearningProgress(repo,current,{...current.value,bookmarks:['external-bookmark']});
+ // Give the read-only event refresh an observable completion before a new user action.
+ await waitFor(async()=>{const latest=(await repo.read<LearningProgress>(LEARNING_RECORD_KEY))!;expect(latest.value.bookmarks).toEqual(['external-bookmark'])});
+ fireEvent.click(screen.getByRole('button',{name:'Start a new practice session'}));await screen.findByText('Practice saved in this browser.');expect(screen.queryByRole('alert')).toBeNull();expect((await repo.read<LearningProgress>(LEARNING_RECORD_KEY))!.value.bookmarks).toEqual(['external-bookmark']);repo.close();
 });
 it('records a new actual exposure when opening completed feedback and clears dirty only after saving',async()=>{
  const idb=new IDBFactory(),factory=()=>openLocalRepository(idb,'page-reveal');const repo=await factory(),oldDate=new Date('2026-01-01T00:00:00.000Z'),question=questionBank.find(q=>q.examVersions.includes('DVA-C03'))!;
