@@ -45,12 +45,12 @@
 }
 
 /* Keep connection hit regions usable at every canvas zoom level. */
-.architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle{width:var(--connection-hit,28px);height:var(--connection-hit,28px);border:0;background:transparent;border-radius:50%;cursor:crosshair;touch-action:none;z-index:5}
-.architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:var(--connection-dot,10px);height:var(--connection-dot,10px);background:#8ab7d8;border-radius:50%;box-shadow:0 0 0 1px #0a1a2a;pointer-events:none;transition:background .12s,box-shadow .12s}
-.architecture-studio .builder-canvas .react-flow__node-default:hover .react-flow__handle::after,.architecture-studio .builder-canvas .react-flow__node-default.selected .react-flow__handle::after{background:#ffb86f;box-shadow:0 0 0 3px #ffb86f40}
+.architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle{width:var(--connection-hit,28px);height:var(--connection-hit,28px);border:0;background:transparent!important;border-radius:50%;cursor:crosshair;touch-action:none;z-index:5}
+.architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:var(--connection-dot,8px);height:var(--connection-dot,8px);background:#8ab7d8;border-radius:50%;box-shadow:0 0 0 1px #0a1a2a;pointer-events:none;transition:background .12s,box-shadow .12s}
+.architecture-studio .builder-canvas .react-flow__node-default:hover .react-flow__handle::after,.architecture-studio .builder-canvas .react-flow__node-default.selected .react-flow__handle::after{background:#ffb86f;box-shadow:0 0 0 2px #ffb86f40}
 .architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle:hover,.architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle.connectingfrom{background:#ffb86f28}
 .architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle.valid{background:#68e2b736}
-.architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle.valid::after{background:#6ef0b7;box-shadow:0 0 0 4px #6ef0b750}
+.architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle.valid::after{background:#6ef0b7;box-shadow:0 0 0 2px #6ef0b750}
 .architecture-studio .network-frame-title{display:flex;align-items:center;gap:8px;cursor:grab;user-select:none}
 .architecture-studio .network-frame-title:active,.architecture-studio .react-flow__node-networkFrame.dragging .network-frame-title{cursor:grabbing}
 .frame-move-icon{opacity:.5;flex:none}.react-flow__node-networkFrame:hover .frame-move-icon,.react-flow__node-networkFrame.selected .frame-move-icon{opacity:1;color:#ffc27b}
