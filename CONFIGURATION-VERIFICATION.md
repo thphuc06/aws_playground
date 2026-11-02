@@ -1,5 +1,19 @@
 # Configuration schema2 handoff
 
+## Compact help controls and agentic expansion plan — 2026-11-02
+
+- Shared ContextHelp now uses a 16px Lucide icon inside a 24px desktop target
+  (32px for coarse pointers), with transparent background, small inline spacing,
+  hover/open styling and preserved accessible names/focus/Escape behavior.
+- In-app browser measured 16×16px visual bounds and 24×24px target bounds beside
+  Architecture assistant; popup opening and keyboard Escape dismissal were checked.
+  Local preview cannot use the production-only backend CORS origin and displays
+  disconnected there; no model call was made for UI verification.
+- Existing 678 tests across 52 files passed; frontend and backend typechecks/builds
+  and fixture HTTP/SSE smoke passed. Existing Vite bundle warning remains.
+- AGENTIC-COMPONENTS-PLAN.md is a researched implementation plan, not a delivered
+  AgentCore component pack. Catalog/schema counts remain unchanged in this release.
+
 ## Publication and observation follow-up — 2026-11-02
 
 The owner authorized commit/push and complete frontend/backend deployment after

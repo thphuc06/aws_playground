@@ -4,6 +4,10 @@ Delivery preference and release checks: [AGENTS.md](AGENTS.md).
 Next implementation batches from browser/code observations:
 [CONFIGURATION-NEXT-PLAN.md](CONFIGURATION-NEXT-PLAN.md).
 
+Agentic expansion design (planned, not yet implemented):
+[AGENTIC-COMPONENTS-PLAN.md](AGENTIC-COMPONENTS-PLAN.md) covers typed AgentCore,
+Cedar, Guardrails, memory/RAG, identity, telemetry and evaluation configuration.
+
 Configuration fidelity audit (2026-11-02): see
 [detailed findings and fixes](CONFIGURATION-AUDIT-2026-11-02.md),
 [the 58-service review matrix](CONFIG-AUDIT-MATRIX.md), and
