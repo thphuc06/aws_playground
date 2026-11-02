@@ -3,7 +3,10 @@ export type ConfigSection='configuration'|'permissions'|'networking'|'reliabilit
 export interface ConfigSource {title:string;url:string;verified:string}
 export interface ConfigField {
  key:string;label:string;kind:'text'|'number'|'boolean'|'select'|'multi-select'|'key-value'|'table'|'json'|'yaml'|'resource';section:ConfigSection;help:string;
- options?:string[];min?:number;max?:number;unit?:string;defaultValue?:JsonValue;itemFields?:ConfigField[];
+ options?:string[];min?:number;max?:number;integer?:boolean;allowedNumbers?:number[];maxLength?:number;unit?:string;defaultValue?:JsonValue;itemFields?:ConfigField[];
+ /** Local network references retain string IDs for compatibility with saved documents. */
+ referenceKind?:'subnet'|'security-group';
+ audit?:{checked:string;scope:string};
  documentType?:'json'|'policy'|'trust-policy'|'resource-policy'|'kms-policy'|'yaml';resourceServices?:string[];
  when?:{field:string;values:(string|number|boolean)[]};objectives?:string[];tier?:'core'|'supporting'|'advanced';source?:ConfigSource;
  awsLimit?:{kind:'hard'|'adjustable'|'dependent';description:string;sourceUrl:string};

@@ -8,8 +8,8 @@ export const relationshipKinds=['request','data','network','identity','deploymen
 export type RelationshipKind=typeof relationshipKinds[number];
 export type ArchitectureData={nodes:Record<string,ArchitectureSettings>;relationships:Record<string,RelationshipKind>};
 export function getArchitectureProfile(service:string){if(!canvasCatalog.some(s=>s.id===service))return undefined;const profile=architectureProfilesData[service];return profile?{...profile,fields:configurationFields[service]??[],sources:configurationSources(service)}:undefined}
-export function validateArchitectureSettings(service:string,value:unknown):string[]{
- if(isConfigurationDocument(value))return validateConfiguration(service,value).filter(f=>f.level==='error').map(f=>f.detail);
+export function validateArchitectureSettings(service:string,value:unknown,enforceBounds=true):string[]{
+ if(isConfigurationDocument(value))return validateConfiguration(service,value,enforceBounds).filter(f=>f.level==='error').map(f=>f.detail);
  const profile=architectureProfilesData[service];
  if(!profile||!value||typeof value!=='object'||Array.isArray(value))return ['Unknown service or invalid settings record.'];
  const errors:string[]=[];

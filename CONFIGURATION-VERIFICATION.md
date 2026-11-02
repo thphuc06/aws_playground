@@ -1,5 +1,65 @@
 # Configuration schema2 handoff
 
+## Publication and observation follow-up — 2026-11-02
+
+The owner authorized commit/push and complete frontend/backend deployment after
+each completed change batch; this preference is recorded in AGENTS.md.
+CONFIGURATION-NEXT-PLAN.md records the new browser/code observations and the
+proposed next batches, without claiming those features are implemented.
+
+Before publication, the inspector repair path was adjusted so pre-existing errors
+on unrelated nodes do not block repairing the current node; new dependency errors
+still block Save. Regression tests cover both cases. Backend status now returns a
+validated Render buildRevision and configurationAudit capability for release checks.
+
+Final local verification for this follow-up: **678 tests / 52 files passed**,
+frontend build/typecheck, backend typecheck/build and fixture HTTP/SSE smoke passed.
+The existing Vite bundle-size advisory remains. Production release evidence is
+reported in the publication handoff rather than inferred from these local checks.
+
+## Configuration fidelity audit — 2026-11-02
+
+See [the detailed audit](CONFIGURATION-AUDIT-2026-11-02.md),
+[all-service matrix](CONFIG-AUDIT-MATRIX.md) and
+[field inventory](CONFIG-FIELD-INVENTORY.json). The inventory covers 58 service
+profiles, 925 root fields and 1405 including table columns. 112 fields have new,
+explicitly scoped audit metadata; this is not a claim that every field or AWS
+behavior has been independently verified.
+
+- Added CIDR parsing/allocation/containment/overlap checks; protocol-specific
+  SG/NACL validation and selected network resource compatibility checks.
+- EC2 can choose a declared subnet/VPC frame and existing shared security groups.
+  SG assignments and configuration save/cancel together; external references
+  remain explicitly unresolved. Shared group rules are not copied into inline notes.
+- Added source-backed bounds and variant/cross-resource checks across compute,
+  storage, messaging, IAM/STS/KMS, monitoring, WAF and delivery profiles.
+- Field help now includes applicable constraints, sources and audit scope. Network
+  frame settings and IAM controls have question-mark help. Invalid frame edits
+  remain editable and require Save; invalid values are not silently clamped.
+- Numeric/text-bound-invalid historical configuration can be reopened for correction
+  through the storage-only editable reader; type/shape guards and strict mutation
+  validation remain enabled. The original persisted values are preserved.
+- Final automated suite: **675 tests passed / 52 files**. Frontend TypeScript and
+  production build passed; backend TypeScript and production build passed.
+- HTTP/SSE schema2 fixture smoke passed with an injected provider transport;
+  no live OpenAI or AWS request was made. Sensitive-file scanner passed for the
+  indexed files. New audit artifacts contain metadata, synthetic fixtures and public
+  references only.
+- Real in-app browser: opened local Builder, added synthetic EC2, opened field
+  help, found and fixed popup clipping at 320 px panel width, verified source/range
+  readability, entered IMDS hop limit 65 and observed Save disabled, then canceled
+  and inspected Networking selectors. The screenshot is
+  `artifacts/configuration-audit/field-help.jpg`. The complete subnet/SG Save/Cancel
+  workflow is covered by interaction tests, not claimed as a full browser E2E.
+- Browser console showed React Flow nodeTypes/edgeTypes warnings during hot reload;
+  no captured browser error was observed in those interactions. Vite still reports
+  the existing large main-bundle advisory. No mobile/device matrix or AWS deployment
+  verification is claimed.
+- Changes are local source changes. No commit, push, frontend publication or backend
+  deployment was performed for this audit.
+
+The historical handoff below describes the previous milestone.
+
 Snapshot: 2026-11-02. This document describes the configuration upgrade; earlier
 assistant and coverage reports remain historical records of their milestones.
 

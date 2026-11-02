@@ -1,5 +1,17 @@
 # Current DVA-C03 assistant update
 
+Delivery preference and release checks: [AGENTS.md](AGENTS.md).
+Next implementation batches from browser/code observations:
+[CONFIGURATION-NEXT-PLAN.md](CONFIGURATION-NEXT-PLAN.md).
+
+Configuration fidelity audit (2026-11-02): see
+[detailed findings and fixes](CONFIGURATION-AUDIT-2026-11-02.md),
+[the 58-service review matrix](CONFIG-AUDIT-MATRIX.md), and
+[per-field metadata](CONFIG-FIELD-INVENTORY.json). New checks cover documented
+network constraints, resource selection and several service-specific ranges and
+incompatibilities. Remaining gaps are explicit; this is not complete AWS Console
+or runtime validation.
+
 See [TERRA-WORKFLOW.md](TERRA-WORKFLOW.md) for the Terra migration, extended workflow limits and resumable checkpoints.
 
 The Builder has **My architecture** and **AI review & proposal**, with one
