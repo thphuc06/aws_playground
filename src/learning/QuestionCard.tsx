@@ -1,0 +1,11 @@
+import {useState} from 'react';
+import type {LearningAttempt,StudyQuestion} from './questionTypes';
+export default function QuestionCard({question,optionOrder,attempt,reveal,busy,onSubmit}:{question:StudyQuestion;optionOrder:string[];attempt?:LearningAttempt;reveal:boolean;busy:boolean;onSubmit:(ids:string[])=>void}){
+ const [selected,setSelected]=useState<string[]>([]);
+ const choices=attempt?.selectedOptionIds??selected;
+ return <section className="learning-question" aria-label="Practice question"><h2>{question.prompt}</h2><p>{question.kind==='multiple-response'?'Select all correct answers.':'Select one answer.'}</p>{question.snippet&&<pre tabIndex={0}>{question.snippet}</pre>}
+ <fieldset disabled={!!attempt||busy}><legend>Your answer</legend>{optionOrder.map(id=>{const option=question.options.find(o=>o.id===id)!;return <label className="learning-choice" key={id}><input type={question.kind==='single-choice'?'radio':'checkbox'} name={'question-'+question.id} checked={choices.includes(id)} onChange={()=>setSelected(current=>question.kind==='single-choice'?[id]:current.includes(id)?current.filter(v=>v!==id):[...current,id])}/><span>{option.text}</span></label>})}</fieldset>
+ {!attempt&&<div className="learning-actions"><button disabled={busy||!selected.length} onClick={()=>onSubmit(selected)}>Submit answer</button><button disabled={busy} onClick={()=>onSubmit([])}>Skip question</button></div>}
+ {attempt&&<div role="status" className="learning-feedback">{reveal?<><strong>{attempt.outcome==='correct'?'Correct':attempt.outcome==='unanswered'?'Question skipped':'Review this answer'}</strong><p>{question.explanation}</p><ul>{question.options.map(option=><li key={option.id}><b>{question.correctOptionIds.includes(option.id)?'Correct choice: ':'Other choice: '}</b>{option.text}{option.explanation&&<p>{option.explanation}</p>}</li>)}</ul>{question.sourceUrls.slice(0,5).map(url=><a key={url} href={url} target="_blank" rel="noreferrer">Official reference ↗</a>)}</>:<p>Answer saved for this session. Explanations appear when you finish.</p>}{attempt.assistance==='answer-revealed'&&<small>Same-day repeat after feedback. Recorded as assisted practice.</small>}</div>}
+ </section>;
+}
