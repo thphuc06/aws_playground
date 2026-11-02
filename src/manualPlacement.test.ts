@@ -1,0 +1,8 @@
+import {it,expect} from 'vitest';
+import {PlacementRoutes} from './manualPlacement';
+import {moveFrame} from './networkTopology';
+import type {Graph} from './architectureReview';
+const graph=():Graph=>({version:1,nodes:[{id:'a',service:'lambda',label:'A',position:{x:0,y:0}},{id:'b',service:'sqs',label:'B',position:{x:500,y:0}},{id:'other',service:'ec2',label:'Other',position:{x:100,y:400}}],edges:[{id:'ab',source:'a',target:'b'}],configs:{}});
+it('leaves an existing route untouched when an unrelated service is manually dropped onto its path',()=>{const g=graph(),cache=new PlacementRoutes(),before=cache.update(g,{},true).ab;g.nodes[2].position={x:250,y:0};expect(cache.update(g,{},false).ab).toEqual(before);expect(g.nodes[2].position).toEqual({x:250,y:0});expect(cache.update(g,{},true).ab).not.toEqual(before)});
+it('translates an entire route when both endpoints move together without rearranging other nodes',()=>{const g=graph(),cache=new PlacementRoutes(),before=cache.update(g,{},true).ab;g.nodes[0].position={x:100,y:150};g.nodes[1].position={x:600,y:150};expect(cache.update(g,{},false).ab).toEqual(before.map(p=>({x:p.x+100,y:p.y+150})));expect(g.nodes[2].position).toEqual({x:100,y:400})});
+it('moves manual bends with a frame only when both connected services are inside it',()=>{const g=graph();g.network={version:1,frames:[{id:'f',kind:'vpc',name:'VPC',x:0,y:0,width:900,height:700}],membership:{a:'f',b:'f'},resources:[]};g.edgeLayouts={ab:{style:'orthogonal',waypoints:[{x:300,y:200}]}};const moved=moveFrame(g,'f',50,80);expect(moved.edgeLayouts!.ab.waypoints).toEqual([{x:350,y:280}]);expect(g.edgeLayouts.ab.waypoints).toEqual([{x:300,y:200}])});
