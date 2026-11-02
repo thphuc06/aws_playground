@@ -1,5 +1,11 @@
 # Current DVA-C03 assistant update
 
+Wire editing: select a line, then drag either end onto a service body to reconnect.
+Hold and drag the line itself to reshape a segment/corner; its active grip hides
+on release. Keyboard users can Tab to controls or use Source/Target service in
+Connection configuration. Automatic wires reroute when their endpoints move;
+unrelated wires stay put. Invalid drops preserve the existing connection.
+
 Appearance: use **Theme → Light / Dark / System** on the top bar. The preference
 persists in this browser. System follows OS changes; canvas, configuration panels
 and the JSON/YAML editor share the selected appearance.

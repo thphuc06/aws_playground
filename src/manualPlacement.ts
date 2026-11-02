@@ -11,8 +11,11 @@ export class PlacementRoutes {
   const anchors=(edge:Graph['edges'][number])=>{const a=graph.nodes.find(n=>n.id===edge.source),b=graph.nodes.find(n=>n.id===edge.target);if(!a||!b)return null;return {source:{x:a.position.x+(sizes[a.id]?.width??150),y:a.position.y+(sizes[a.id]?.height??180)/2},target:{x:b.position.x,y:b.position.y+(sizes[b.id]?.height??180)/2}};};
   const routed=graph.edges.filter(e=>graph.edgeLayouts?.[e.id]?.style!=='curved'&&!graph.edgeLayouts?.[e.id]?.waypoints?.length);
   for(const id of this.saved.keys())if(!routed.some(e=>e.id===id))this.saved.delete(id);
-  const needed=automatic?routed:routed.filter(e=>!this.saved.has(e.id));const generated=needed.length?routeConnections({...graph,edges:needed},sizes):{};const result:Record<string,Point[]>={};
-  for(const e of routed){const current=anchors(e);if(!current)continue;let prior=this.saved.get(e.id);if(generated[e.id])prior={points:generated[e.id],...current,last:current};if(!prior)prior={points:manualRoute(current.source,current.target,[]),...current,last:current};
+  const changedOneEnd=(e:Graph['edges'][number])=>{const p=this.saved.get(e.id),a=anchors(e);if(!p||!a)return true;const dx=a.source.x-p.last.source.x,dy=a.source.y-p.last.source.y,tx=a.target.x-p.last.target.x,ty=a.target.y-p.last.target.y;return Math.abs(dx-tx)>.000001||Math.abs(dy-ty)>.000001;};
+  // An automatic route must follow moved endpoints, not retain stale doglegs as
+  // if the user had pinned them. Unrelated wires and shared translations stay put.
+  const needed=automatic?routed:routed.filter(changedOneEnd);const generated=needed.length?routeConnections({...graph,edges:needed},sizes):{};const result:Record<string,Point[]>={};
+  for(const e of routed){const current=anchors(e);if(!current)continue;let prior=this.saved.get(e.id);if(needed.some(n=>n.id===e.id))prior={points:generated[e.id]??manualRoute(current.source,current.target,[]),...current,last:current};if(!prior)prior={points:manualRoute(current.source,current.target,[]),...current,last:current};
    // Only a shared translation moves the saved track. Endpoint elbows are rendered
    // from this stable baseline, never fed back as new bends on the next pointer move.
    const dx=current.source.x-prior.last.source.x,dy=current.source.y-prior.last.source.y,tx=current.target.x-prior.last.target.x,ty=current.target.y-prior.last.target.y;

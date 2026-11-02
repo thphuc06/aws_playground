@@ -1,5 +1,32 @@
 # Configuration schema2 handoff
 
+## Connection interaction and node dragging — 2026-11-02
+
+- Replaced the selected wire's persistent visible grid of bend controls with
+  direct press/drag shaping. Only the active grip is displayed; release/cancel
+  hides it. Focused keyboard controls remain visible for accessibility.
+- Dedicated endpoint controls in the editing overlay prevent a reconnect drag
+  being intercepted as a new connection from the node port. Drop onto a service
+  body, or use the Source/Target selectors. Escape and blank/invalid drops retain
+  the old connection. Reconnection retains its ID/label, resets stale route shape
+  and keeps the existing permission-reset behavior.
+- Node ports use a stable point-sized layout anchor and separate enlarged CSS hit
+  area. Previously, the oversized layout box displaced the rendered arrow anchor.
+- Automatic routes recompute for moved endpoints instead of preserving obsolete
+  terminal doglegs; close forward-facing blocks use their narrow corridor instead
+  of a large detour. Unrelated paths and shared frame translations remain stable.
+  Manually shaped terminal legs follow their nodes while retaining inner geometry.
+- 691 tests across 55 files passed; frontend and backend typechecks passed, and
+  frontend build passed. Cases cover anchoring, duplicate/self reconnection,
+  body hit testing, invalid/canceled drops, direct shaping and moved-node routing.
+- Real local browser checks: moved a block down then up/left; reshaped a wire and
+  observed zero visible bend grips after release; reconnected a target onto a node
+  body; rejected a duplicate source pair; preserved a wire after a blank drop;
+  created a new connection through a port onto a node body. Synthetic examples only;
+  no user production diagram or AWS service was changed for these checks.
+- Existing Vite main-bundle advisory remains; touch behavior is implemented with
+  pointer events but was not independently verified on physical mobile hardware.
+
 ## Light, Dark and System appearance — 2026-11-02
 
 - Added a labeled top-bar theme selector with browser-local persistence, OS-theme

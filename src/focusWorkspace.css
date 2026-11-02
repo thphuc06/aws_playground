@@ -45,7 +45,7 @@
 }
 
 /* Keep connection hit regions usable at every canvas zoom level. */
-.architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle{width:var(--connection-hit,28px);height:var(--connection-hit,28px);border:0;background:transparent!important;border-radius:50%;cursor:crosshair;touch-action:none;z-index:5}
+.architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle{width:1px;height:1px;min-width:1px;min-height:1px;border:0;background:transparent!important;border-radius:50%;cursor:crosshair;touch-action:none;z-index:5}.architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle::before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:var(--connection-hit,28px);height:var(--connection-hit,28px);border-radius:50%;background:transparent}
 .architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:var(--connection-dot,8px);height:var(--connection-dot,8px);background:var(--surface-selected);border-radius:50%;box-shadow:0 0 0 1px var(--shadow);pointer-events:none;transition:background .12s,box-shadow .12s}
 .architecture-studio .builder-canvas .react-flow__node-default:hover .react-flow__handle::after,.architecture-studio .builder-canvas .react-flow__node-default.selected .react-flow__handle::after{background:var(--accent-soft);box-shadow:0 0 0 2px var(--shadow)}
 .architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle:hover,.architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle.connectingfrom{background:var(--accent-soft)}
@@ -107,3 +107,12 @@
 
 .architecture-studio .builder-page.is-focused .builder-canvas-toolbar>.context-help>summary{border:0;border-radius:4px;background:transparent;box-shadow:none;backdrop-filter:none}
 @media(pointer:coarse){.context-help>summary,.configuration-field .context-help>summary{width:32px;height:32px;padding:8px}.context-help-content{top:36px}}
+
+/* Direct wire shaping: show only the grip currently held or keyboard-focused. */
+.architecture-studio .edge-bend-handle{opacity:0;pointer-events:none;width:10px!important;height:10px!important;min-height:10px!important}
+.architecture-studio .edge-bend-handle[data-active=true],.architecture-studio .edge-bend-handle:focus-visible{opacity:1;pointer-events:all}
+.wire-shape-hit{cursor:grab;touch-action:none}.wire-shape-hit:active{cursor:grabbing}
+
+.architecture-studio .edge-endpoint-grip{position:absolute;left:0;top:0;margin:0!important;transform-origin:0 0;z-index:35;pointer-events:all;width:26px!important;height:26px!important;min-height:26px!important;padding:0!important;border:1px solid transparent!important;border-radius:50%!important;background:transparent!important;color:transparent;cursor:grab;touch-action:none;font-size:18px!important}
+.architecture-studio .edge-endpoint-grip:hover,.architecture-studio .edge-endpoint-grip:focus-visible,.architecture-studio .edge-endpoint-grip[data-dragging=true]{background:var(--surface)!important;border-color:var(--accent-line)!important;color:var(--accent-text)}
+.architecture-studio .edge-endpoint-grip[data-dragging=true]{cursor:grabbing}
