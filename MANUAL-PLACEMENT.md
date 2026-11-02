@@ -11,3 +11,5 @@ Arrange diagram explicitly resets the manual route cache and runs global placeme
 The backend also no longer silently packs geometry after network edits or at finish. AI can still use the explicit layout_draft tool when a requested design includes arrangement; configuration-only work is instructed to preserve manual placement. Placement conflicts are surfaced as considerations.
 
 Tests cover unrelated-node drops leaving tracks untouched, common translation of endpoints, moving saved bends with frame members and preserving backend geometry. Browser pointer E2E remains unverified. No env changes.
+
+Endpoint drag fix: automatic tracks retain a stable baseline. Temporary endpoint elbows are never saved as new baseline bends during pointer movement. Shared frame translations still move the whole track. Regression coverage includes 400 circular drag positions, returning to the original position, history-independent destinations, and translating a frame after a separate endpoint move. This cache is runtime-only; reload clears an old tangled automatic route. Explicit manual bends are preserved.
