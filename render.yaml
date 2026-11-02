@@ -21,4 +21,16 @@ services:
       - key: REVIEW_ALLOWED_ORIGINS
         value: https://aws-developer-playground-phuc.pointykayak.chatgpt.site
       - key: REVIEW_MODEL
-        value: gpt-6.1-sol
+        value: gpt-6.1-terra
+      - key: REVIEW_REASONING_EFFORT
+        value: 'medium'
+      - key: REVIEW_MAX_RESPONSES
+        value: '32'
+      - key: REVIEW_MAX_TOOL_CALLS
+        value: '100'
+      - key: REVIEW_MAX_SEARCHES
+        value: '6'
+      - key: REVIEW_MAX_OUTPUT_TOKENS
+        value: '12288'
+      - key: REVIEW_TIMEOUT_SECONDS
+        value: '1200'

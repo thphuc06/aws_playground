@@ -1,9 +1,11 @@
 # Current DVA-C03 assistant update
 
+See [TERRA-WORKFLOW.md](TERRA-WORKFLOW.md) for the Terra migration, extended workflow limits and resumable checkpoints.
+
 The Builder has **My architecture** and **AI review & proposal**, with one
 **Review & build proposal** action. Live activity shows actual tools/searches;
 the report explains the current design, services and proposed configuration changes.
-Use System purpose, priority and protected services to guide GPT-6.1 Sol.
+Use System purpose, priority and protected services to guide the configured model (GPT-6.1 Terra by default).
 An isolated editable draft supports Preview/adoption/Undo; both diagrams persist
 independently. Architecture settings are separate from legacy simulation lessons.
 

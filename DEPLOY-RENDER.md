@@ -1,5 +1,7 @@
 # Render: DVA-C03 architecture assistant
 
+Latest Terra and extended workflow settings: see [TERRA-WORKFLOW.md](TERRA-WORKFLOW.md). These supersede the earlier workflow defaults below.
+
 Configuration schema2 requires the latest backend commit: status must advertise
 `configurationSchema:2` and `workspaceSchema:3`. The updated frontend deliberately
 asks for a backend deployment if those capabilities are missing. No environment
@@ -19,7 +21,7 @@ Shared source in `src/` is required by the backend build.
 | --- | --- |
 | NODE_VERSION | 22 |
 | OPENAI_API_KEY | Existing valid key, backend only |
-| REVIEW_MODEL | **gpt-6.1-sol** |
+| REVIEW_MODEL | **gpt-6.1-terra** |
 | REVIEW_ENABLED | true |
 | REVIEW_ALLOWED_ORIGINS | https://aws-developer-playground-phuc.pointykayak.chatgpt.site |
 | REVIEW_BUDGET_USD | Remove; ignored by the new version |
@@ -44,7 +46,7 @@ Sync the existing Blueprint after the GitHub CI Required checks job succeeds.
 Auto-deploy is After CI Checks Pass; if that deploy is already running, do not
 trigger a second deploy. `/health` only establishes process liveness.
 With the allowed Site Origin, `/api/review/status` must return enabled:true,
-model gpt-6.1-sol, capabilities.architectureAssistant=1 and streaming:true.
+model gpt-6.1-terra, capabilities.architectureAssistant=1 and streaming:true.
 Unknown Origin must return403. Status does not require an access token.
 
 The new frontend detects the capability and asks for a Render update when it is

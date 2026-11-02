@@ -1,5 +1,7 @@
 # Local DVA-C03 assistant setup
 
+Latest Terra and extended workflow settings: see [TERRA-WORKFLOW.md](TERRA-WORKFLOW.md). These supersede the earlier workflow defaults below.
+
 The configuration upgrade uses workspace version3 and configuration schema2.
 Old local keys remain as migration backups; old prose appears under Legacy notes.
 See CONFIGURATION-VERIFICATION.md and CONFIG-COVERAGE-MATRIX.md for the editor,
@@ -18,7 +20,7 @@ npm run build:backend
 
 Copy `backend/.env.example` to `.env.local` only if the file does not exist.
 Enter your OpenAI key privately. Keep `.env.local` ignored and never print it.
-Set REVIEW_MODEL=gpt-6.1-sol, REVIEW_ENABLED=true, PORT=8787 and
+Set REVIEW_MODEL=gpt-6.1-terra, REVIEW_ENABLED=true, PORT=8787 and
 REVIEW_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173.
 There is no access token, disk setup or USD budget variable.
 
