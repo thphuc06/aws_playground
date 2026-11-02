@@ -1,0 +1,23 @@
+import type {Graph} from './architectureReview';
+import type {NetworkFrame} from './networkTopology';
+export const layoutCard={width:180,height:240,padding:36,header:64,gapX:90,gapY:64};
+type Box={id:string;kind:'node'|'frame';width:number;height:number;x:number;y:number;children?:Box[]};
+/** Visual packing only: memberships, connections and configuration are never inferred. */
+export function arrangeArchitecture(input:Graph):Graph{
+ const graph=structuredClone(input),frames=graph.network?.frames??[],membership=graph.network?.membership??{},frameIds=new Set(frames.map(f=>f.id)),visiting=new Set<string>();
+ const nodeOrder=new Map(graph.nodes.map((n,i)=>[n.id,i]));const rank=new Map(graph.nodes.map(n=>[n.id,0]));
+ // Bound feedback loops rather than trying to topologically sort a cyclic architecture.
+ for(let i=0;i<Math.min(graph.nodes.length,5);i++)for(const e of graph.edges)if(e.source!==e.target)rank.set(e.target,Math.min(5,Math.max(rank.get(e.target)??0,(rank.get(e.source)??0)+1)));
+ const compare=(a:Box,b:Box)=>(rank.get(a.id)??0)-(rank.get(b.id)??0)||(nodeOrder.get(a.id)??0)-(nodeOrder.get(b.id)??0)||a.id.localeCompare(b.id);
+ const pack=(items:Box[],columns:number)=>{let x=0,y=0,rowHeight=0,width=0,column=0;for(const item of items){if(column>=columns){x=0;y+=rowHeight+layoutCard.gapY;rowHeight=0;column=0;}item.x=x;item.y=y;x+=item.width+layoutCard.gapX;rowHeight=Math.max(rowHeight,item.height);width=Math.max(width,x-layoutCard.gapX);column++;}return {width,height:items.length?y+rowHeight:0};};
+ const build=(parent?:string):Box[]=>{const directNodes=graph.nodes.filter(n=>parent?membership[n.id]===parent:!membership[n.id]||!frameIds.has(membership[n.id])).map(n=>({id:n.id,kind:'node' as const,width:layoutCard.width,height:layoutCard.height,x:0,y:0})).sort(compare);
+  const directFrames=frames.filter(f=>parent?f.parentId===parent:!f.parentId||!frameIds.has(f.parentId)).map(f=>{if(visiting.has(f.id))throw new Error('Cannot arrange cyclic frames.');visiting.add(f.id);const children=build(f.id);visiting.delete(f.id);const nodes=children.filter(b=>b.kind==='node'),groups=children.filter(b=>b.kind==='frame');const nSize=pack(nodes,Math.min(5,Math.max(1,Math.ceil(Math.sqrt(nodes.length)))));const gSize=pack(groups,groups.length<=2?2:Math.ceil(Math.sqrt(groups.length)));for(const group of groups)group.y+=nodes.length?nSize.height+layoutCard.gapY:0;return {id:f.id,kind:'frame' as const,width:Math.max(260,Math.max(nSize.width,gSize.width)+layoutCard.padding*2),height:Math.max(200,nSize.height+gSize.height+(nodes.length&&groups.length?layoutCard.gapY:0)+layoutCard.header+layoutCard.padding),x:0,y:0,children:[...nodes,...groups]};});return [...directNodes,...directFrames];};
+ const roots=build();const loose=roots.filter(b=>b.kind==='node'),groups=roots.filter(b=>b.kind==='frame');const looseSize=pack(loose,Math.min(5,Math.max(1,Math.ceil(Math.sqrt(loose.length)))));pack(groups,groups.length<=2?2:Math.ceil(Math.sqrt(groups.length)));for(const group of groups)group.y+=loose.length?looseSize.height+layoutCard.gapY:0;
+ const apply=(items:Box[],x:number,y:number)=>{for(const b of items){const px=x+b.x,py=y+b.y;if(b.kind==='node'){const n=graph.nodes.find(n=>n.id===b.id)!;n.position={x:px,y:py};}else{const f=frames.find(f=>f.id===b.id)!;Object.assign(f,{x:px,y:py,width:b.width,height:b.height});apply(b.children??[],px+layoutCard.padding,py+layoutCard.header);}}};apply(roots,40,40);return graph;
+}
+export function fullyInsideFrame(frame:NetworkFrame,x:number,y:number,width=150,height=240){return x>=frame.x+12&&y>=frame.y+48&&x+width<=frame.x+frame.width-12&&y+height<=frame.y+frame.height-12;}
+export function placementWarnings(graph:Graph):string[]{const t=graph.network;if(!t)return [];const warnings:string[]=[];for(const n of graph.nodes){const frame=t.frames.find(f=>f.id===t.membership[n.id]);if(!frame)continue;if(!fullyInsideFrame(frame,n.position.x,n.position.y))warnings.push(n.label+' extends outside its declared frame '+frame.name+'. Arrange the diagram or resize the frame.');if(n.service==='vpc'&&frame.kind==='subnet')warnings.push(n.label+' is a VPC service grouped inside a subnet. Review the membership; this does not describe AWS network containment.');}return warnings;}
+
+export function frameDepth(frames:NetworkFrame[],id:string){let depth=0,current=frames.find(f=>f.id===id);const seen=new Set<string>();while(current?.parentId&&!seen.has(current.id)){seen.add(current.id);depth++;current=frames.find(f=>f.id===current!.parentId);}return depth;}
+
+export function layoutSignature(graph:Graph){return JSON.stringify({nodes:graph.nodes.map(n=>[n.id,n.position]),frames:graph.network?.frames.map(f=>[f.id,f.parentId,f.x,f.y,f.width,f.height]),membership:graph.network?.membership});}

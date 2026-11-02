@@ -1,3 +1,4 @@
+import {arrangeArchitecture} from '../src/architectureLayout';
 import {validateTopology,networkResourceFields,networkSources,frameKinds,resourceKinds} from '../src/networkTopology';
 import {parseConfigurationDocument} from '../src/configurationDocuments';
 import {configurationFields,fieldJsonSchema,migrateConfiguration,normalizeToolValue,validateConfiguration,isConfigurationDocument,configurationGraphFindings} from '../src/configurationRegistry';
@@ -19,7 +20,7 @@ export class ConfigurationTools {
   ];
  }
  networkSchema(){return {version:1,frameKinds,resourceKinds,frameShape:{id:'unique logical ID',kind:'frame kind',name:'label',x:'number',y:'number',width:'number >=220',height:'number >=160',parentId:'optional enclosing frame ID',cidr:'optional CIDR'},shape:{version:1,frames:[],membership:{serviceNodeId:'frame ID'},resources:[{id:'unique logical ID',name:'label',kind:'resource kind',frameId:'optional owning frame ID',assignedTo:['service/subnet ID'],values:{}}]},resourceFields:networkResourceFields,current:this.getGraph().network??null,sources:networkSources};}
- network(args:any){const parsed=parseConfigurationDocument(args.document);if(parsed.errors.length)throw new Error(parsed.errors.join(' '));const graph=structuredClone(this.getGraph());const errors=validateTopology(parsed.value,graph.nodes.map(n=>n.id));if(errors.length)throw new Error(errors.join(' '));graph.network=parsed.value as any;const checked=validateReviewGraph(graph);if(!checked.ok)throw new Error(checked.error);this.setGraph(graph);return {changes:['Updated draft frames, memberships and shared network resources'],nodeCount:graph.nodes.length,edgeCount:graph.edges.length};}
+ network(args:any){const parsed=parseConfigurationDocument(args.document);if(parsed.errors.length)throw new Error(parsed.errors.join(' '));const graph=structuredClone(this.getGraph());const errors=validateTopology(parsed.value,graph.nodes.map(n=>n.id));if(errors.length)throw new Error(errors.join(' '));graph.network=parsed.value as any;const checked=validateReviewGraph(graph);if(!checked.ok)throw new Error(checked.error);this.setGraph(arrangeArchitecture(graph));return {changes:['Updated draft frames, memberships and shared network resources'],nodeCount:graph.nodes.length,edgeCount:graph.edges.length};}
  configure(args:any){
   if(!Array.isArray(args.updates)||args.updates.length<1||args.updates.length>25)throw new Error('Use 1–25 node updates.');
   const graph=structuredClone(this.getGraph());graph.architecture??={nodes:{},relationships:{}};const changed:string[]=[];
