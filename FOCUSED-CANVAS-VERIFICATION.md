@@ -12,3 +12,5 @@
 Validation:563 tests pass across39 files, including focus isolation/restore, collapsed AI placement after the canvas and resource-editor-only behavior. Frontend/backend typechecks and frontend production build pass; indexed secret scan is run before commit. Real-browser layout/drag/fullscreen E2E has not been verified because browser preview access was unavailable. Existing Vite chunk-size advisory remains.
 
 Publication: GitHub main and existing owner-private Site. This is a frontend update; no new environment variables or manual backend deployment is required.
+
+The Render origin is preconfigured; the UI checks status automatically and offers Reconnect on failure. No backend URL or token input is shown. Auto-connect sends no graph; explicit consent is still required for a review request.
