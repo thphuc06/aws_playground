@@ -57,3 +57,13 @@ provider and checks that partial results remain labeled as gaps.
 No paid model generation or AWS execution was used for this change. Real-browser
 pointer/E2E verification was not performed. Live Terra design quality remains a
 separate evaluation from these deterministic contract tests.
+
+## Response language
+
+Agent explanations follow the natural language of System purpose or an explicit
+response-language preference. Vietnamese/mixed Vietnamese-English requests receive
+Vietnamese prose; unclear language defaults to Vietnamese. AWS names, diagram labels,
+configuration keys/values, identifiers, enums, policies, code, search queries and source
+titles retain English/original syntax. Localization never rewrites saved configuration.
+Static application/activity labels keep their existing language. New runs use this
+behavior; existing saved reports are not translated automatically.
