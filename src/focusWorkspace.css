@@ -65,3 +65,5 @@
 @media(pointer:coarse){.architecture-studio .frame-resize-handle{opacity:.8}}
 
 .architecture-studio .react-flow__node-networkFrame{cursor:default}.architecture-studio .network-frame-title b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.architecture-studio .network-frame-title small{flex-shrink:0}
+
+.assistant-attempt-status{margin:12px 0;padding:12px 16px;border-left:3px solid #86b5d8;background:#152d42}.assistant-attempt-status.failed,.assistant-attempt-status.canceled{border-color:#f0b26b;background:#352b23}.assistant-result-details>summary{cursor:pointer;padding:14px;border:1px solid #4d6884;border-radius:8px;margin:12px 0;color:#cadff4}.assistant-request-receipt{padding:12px 16px;background:#101f30;border-radius:8px;margin:12px 0}.assistant-request-receipt p{white-space:pre-wrap;font-size:12px;max-height:140px;overflow:auto}.assistant-disclosure .assistant-report{margin:12px;padding:0}.assistant-disclosure .assistant-result-details>.builder-page{margin:16px 0}

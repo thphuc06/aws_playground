@@ -3,7 +3,7 @@ import {fingerprintGraph,validateReviewGraph,type Graph} from './architectureRev
 import type {AssistantResult,Priority} from './assistantContract';
 export const workspaceKey='aws-playground-workspace-v3',previousWorkspaceKey='aws-playground-workspace-v2',legacyGraphKey='aws-playground-builder-v1';
 export const emptyGraph=():Graph=>({version:1,nodes:[],edges:[],configs:{}});
-export interface ArchitectureWorkspace {version:3;original:Graph;draft:Graph|null;draftBase:string|null;purpose:string;priority:Priority;protectedNodeIds:string[];review:AssistantResult|null;proposal:AssistantResult|null}
+export interface ArchitectureWorkspace {lastAttempt?:{status:'running'|'succeeded'|'failed'|'canceled';purpose:string;startedAt:string;error?:string};version:3;original:Graph;draft:Graph|null;draftBase:string|null;purpose:string;priority:Priority;protectedNodeIds:string[];review:AssistantResult|null;proposal:AssistantResult|null}
 export function createWorkspace(original=emptyGraph()):ArchitectureWorkspace{return {version:3,original,draft:null,draftBase:null,purpose:'',priority:'balanced',protectedNodeIds:original.nodes.filter(n=>['ec2','lambda','ecs','eks','rds','aurora','dynamodb','s3','elasticache','opensearch'].includes(n.service)).map(n=>n.id),review:null,proposal:null}}
 export function readWorkspace(storage:Pick<Storage,'getItem'|'setItem'>):ArchitectureWorkspace{
  const saved=storage.getItem(workspaceKey)??storage.getItem(previousWorkspaceKey);
@@ -24,7 +24,7 @@ export function completionNotice(mode:'review'|'design',stale:boolean){
  if(stale)return mode==='design'?'AI proposal created for an older snapshot. Rerun before adopting.':'Review completed for an older snapshot. Rerun to assess your latest changes.';
  return mode==='design'?'Assessment and AI proposal ready. Read the explanation and inspect the editable diagram below.':'Review complete. Findings are in the combined result tab. Choose Review & build proposal to also generate a diagram.';
 }
-export function isDraftStale(workspace:ArchitectureWorkspace){return workspace.draftBase!==fingerprintGraph(workspace.original)}
+export function isDraftStale(workspace:ArchitectureWorkspace){const c=workspace.proposal?.requestContext;return workspace.draftBase!==fingerprintGraph(workspace.original)||!!workspace.proposal&&(!c||c.purpose!==workspace.purpose||c.priority!==workspace.priority||JSON.stringify([...c.protectedNodeIds].sort())!==JSON.stringify([...workspace.protectedNodeIds].sort()))}
 const stable=(v:unknown):string=>{if(Array.isArray(v))return '['+v.map(stable).join(',')+']';if(v&&typeof v==='object')return '{'+Object.entries(v).sort(([a],[b])=>a.localeCompare(b)).map(([k,x])=>JSON.stringify(k)+':'+stable(x)).join(',')+'}';return JSON.stringify(v)??'unknown'};
 export function graphChanges(before:Graph,after:Graph):string[]{
  const changes:string[]=[];if(stable(before.network??null)!==stable(after.network??null))changes.push('Update frames, memberships or shared network resources');
