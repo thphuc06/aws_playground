@@ -1,3 +1,4 @@
+// Diagnostic rule IDs are persistent. Add new IDs; never renumber existing producers.
 import {documentConfigurationFindings} from './configurationDocumentRules';
 import {policyFieldQuotaIssues,policyLimitData} from './policyQuotaChecks';
 import {semanticConfigurationFindings} from './configurationRules';
@@ -49,16 +50,16 @@ export function checkField(field:ConfigField,value:unknown,enforceBounds=true):s
 }
 export function validateConfiguration(service:string,input:unknown,enforceBounds=true):ConfigurationFinding[]{
  const fields=configurationFields[service];const findings:ConfigurationFinding[]=[];
- const error=(field:string,title:string,detail:string)=>findings.push({field,title,detail,level:'error',category:'structure'});
- if(!fields||!isConfigurationDocument(input)){error('','Invalid configuration','Expected version2 values and legacyNotes.');return findings;}
- for(const k of Object.keys(input))if(!['schemaVersion','values','legacyNotes'].includes(k))error(k,'Unknown document field',k);
+ const error=(ruleId:string,field:string,title:string,detail:string)=>findings.push({ruleId,field,title,detail,level:'error',category:'structure'});
+ if(!fields||!isConfigurationDocument(input)){error('shape.001','','Invalid configuration','Expected version2 values and legacyNotes.');return findings;}
+ for(const k of Object.keys(input))if(!['schemaVersion','values','legacyNotes'].includes(k))error('shape.002',k,'Unknown document field',k);
  for(const [key,value]of Object.entries(input.values)){
-  const field=fields.find(f=>f.key===key);if(!field){error(key,'Unknown configuration field','Unknown configuration field: '+key);continue;}
-  if(typeof value==='string'&&field.kind==='json')for(const issue of policyFieldQuotaIssues(service,key,value))error(key,'Policy document quota',issue);
-  for(const issue of checkField(field,value,enforceBounds))error(key,'Check '+field.label,issue);
-  const applicable=fieldApplicable(field,input.values);if(applicable===false)error(key,'Option unavailable for this variant',field.label+' is not applicable to the selected '+field.when!.field+'. Clear it or choose the compatible variant.');
+  const field=fields.find(f=>f.key===key);if(!field){error('shape.003',key,'Unknown configuration field','Unknown configuration field: '+key);continue;}
+  if(typeof value==='string'&&field.kind==='json')for(const issue of policyFieldQuotaIssues(service,key,value))error('shape.004',key,'Policy document quota',issue);
+  for(const issue of checkField(field,value,enforceBounds))error('shape.005',key,'Check '+field.label,issue);
+  const applicable=fieldApplicable(field,input.values);if(applicable===false)error('shape.006',key,'Option unavailable for this variant',field.label+' is not applicable to the selected '+field.when!.field+'. Clear it or choose the compatible variant.');
  }
- if(Object.keys(input.legacyNotes).length)findings.push({level:'info',title:'Legacy notes preserved',detail:'Old prose was not assumed to be configured permissions or network state.',category:'unknown'});
+ if(Object.keys(input.legacyNotes).length)findings.push({ruleId:'shape.direct.1',level:'info',title:'Legacy notes preserved',detail:'Old prose was not assumed to be configured permissions or network state.',category:'unknown'});
  return findings;
 }
 export function migrateConfiguration(service:string,input:Record<string,JsonValue>):ConfigurationDocument{
@@ -85,8 +86,8 @@ export function configurationGraphFindings(service:string,document:Configuration
  const visit=(fields:ConfigField[],values:Record<string,JsonValue>,path='')=>{for(const f of fields){const value=values[f.key];if(value===undefined)continue;
   if(f.kind==='resource'&&isRecord(value)){const ref=value as Record<string,JsonValue>;
    const exists=ref.type==='node'?graph.nodes.some(n=>n.id===ref.id&&(!f.resourceServices?.length||f.resourceServices.includes(n.service))):ref.type==='role'?graph.securityLibrary?.roles.some(r=>r.id===ref.id):ref.type==='frame'?graph.network?.frames.some(frame=>frame.id===ref.id&&frame.kind==='vpc'):true;
-   if(exists&&ref.type==='node'&&/role/i.test(f.key)){const target=graph.nodes.find(n=>n.id===ref.id);const targetConfig=target?graph.architecture?.nodes[target.id]:undefined;if(target?.service==='iam'&&isConfigurationDocument(targetConfig)&&targetConfig.values.principalType!==undefined&&targetConfig.values.principalType!=='role')findings.push({level:'error',field:path+f.key,title:'A role reference is required',detail:f.label+' points to an IAM identity explicitly configured as something other than a role.',category:'design'});}
-   if(!exists)findings.push({level:'error',field:path+f.key,title:'Unresolved resource reference',detail:f.label+' points to a missing/incompatible resource. Relink it; no permission or connectivity is assumed.',category:'design'});
+   if(exists&&ref.type==='node'&&/role/i.test(f.key)){const target=graph.nodes.find(n=>n.id===ref.id);const targetConfig=target?graph.architecture?.nodes[target.id]:undefined;if(target?.service==='iam'&&isConfigurationDocument(targetConfig)&&targetConfig.values.principalType!==undefined&&targetConfig.values.principalType!=='role')findings.push({ruleId:'shape.direct.2',level:'error',field:path+f.key,context:{principalType:targetConfig.values.principalType},title:'A role reference is required',detail:f.label+' points to an IAM identity explicitly configured as something other than a role.',category:'design'});}
+   if(!exists)findings.push({ruleId:'shape.direct.3',level:'error',field:path+f.key,title:'Unresolved resource reference',detail:f.label+' points to a missing/incompatible resource. Relink it; no permission or connectivity is assumed.',category:'design'});
   }if(f.kind==='table'&&Array.isArray(value))value.forEach((row,i)=>{if(isRecord(row))visit(f.itemFields??[],row as Record<string,JsonValue>,path+f.key+'.'+i+'.')});
  }};visit(configurationFields[service]??[],document.values);return findings;
 }

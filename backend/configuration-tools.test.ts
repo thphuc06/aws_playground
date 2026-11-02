@@ -14,3 +14,26 @@ it('discovers strict typed schemas and commits structured node settings atomical
 it('rejects an invalid multi-resource batch without retaining earlier changes',()=>{let graph=base();const tools=new ConfigurationTools(()=>graph,g=>{graph=g});tools.load(['lambda']);expect(()=>tools.configure({updates:[{service:'lambda',nodeId:'fn',clearFields:[],values:{timeoutSeconds:30}},{service:'lambda',nodeId:'missing',clearFields:[],values:{timeoutSeconds:20}}]})).toThrow();expect(graph).toEqual(base())});
 it('preserves untouched settings, clears only explicitly requested fields and keeps notes',()=>{let graph=base();graph.architecture={nodes:{fn:{executionRole:'old prose',timeoutSeconds:25}},relationships:{}};const tools=new ConfigurationTools(()=>graph,g=>{graph=g});tools.load(['lambda']);tools.configure({updates:[{service:'lambda',nodeId:'fn',clearFields:[],values:{timeoutSeconds:null,memoryMb:512}}]});expect((graph.architecture!.nodes.fn.values as any).timeoutSeconds).toBe(25);expect((graph.architecture!.nodes.fn.legacyNotes as any).executionRole).toBe('old prose');tools.configure({updates:[{service:'lambda',nodeId:'fn',clearFields:['memoryMb'],values:{}}]});expect((graph.architecture!.nodes.fn.values as any).memoryMb).toBeUndefined()});
 it('updates the shared learning security library without touching real AWS',()=>{let graph=base();const tools=new ConfigurationTools(()=>graph,g=>{graph=g});tools.security({policies:[{id:'logs',name:'Lambda logs',kind:'identity',managedPolicyId:'AWSLambdaBasicExecutionRole',document:null}],roles:[{id:'worker-role',name:'Worker role',trustPolicyId:null,policyIds:['logs'],boundaryPolicyId:null,sessionPolicyIds:[]}]});expect(graph.securityLibrary?.roles[0].policyIds).toEqual(['logs']);tools.load(['lambda']);tools.configure({updates:[{service:'lambda',nodeId:'fn',clearFields:[],values:{executionRole:{type:'role',id:'worker-role'}}}]});expect(validateReviewGraph(graph).ok).toBe(true)});
+
+it('repairs one legacy invalid resource while preserving unrelated saved errors',()=>{
+ let graph=base();graph.nodes=[{id:'a',service:'ec2',label:'A',position:{x:0,y:0}},{id:'b',service:'ec2',label:'B',position:{x:400,y:0}}];graph.edges=[];graph.architecture={nodes:{a:configurationDocument({imdsHopLimit:99}) as any,b:configurationDocument({imdsHopLimit:99}) as any},relationships:{}};
+ const tools=new ConfigurationTools(()=>graph,g=>{graph=g});tools.load(['ec2']);tools.configure({updates:[{service:'ec2',nodeId:'a',clearFields:[],values:{imdsHopLimit:64}}]});expect((graph.architecture.nodes.a.values as any).imdsHopLimit).toBe(64);expect((graph.architecture.nodes.b.values as any).imdsHopLimit).toBe(99);
+});
+it('does not let an unrelated invalid service block a valid network edit',()=>{
+ let graph=base();graph.architecture={nodes:{fn:configurationDocument({timeoutSeconds:999}) as any},relationships:{}};
+ const tools=new ConfigurationTools(()=>graph,g=>{graph=g});tools.network({document:JSON.stringify({version:1,frames:[{id:'vpc',kind:'vpc',name:'VPC',cidr:'10.0.0.0/16',x:0,y:0,width:700,height:400}],membership:{},resources:[]})});expect(graph.network!.frames[0].id).toBe('vpc');expect((graph.architecture.nodes.fn.values as any).timeoutSeconds).toBe(999);
+});
+
+it('repairs one network field without requiring an unrelated legacy field to be fixed',()=>{
+ let graph=base();graph.network={version:1,frames:[],membership:{},resources:[{id:'a',kind:'customer-gateway',name:'A',assignedTo:[],values:{bgpAsn:0}},{id:'b',kind:'customer-gateway',name:'B',assignedTo:[],values:{bgpAsn:0}}]};
+ const tools=new ConfigurationTools(()=>graph,g=>{graph=g}),next=structuredClone(graph.network);next.resources[0].values.bgpAsn=65000;
+ tools.network({document:JSON.stringify(next)});expect(graph.network.resources[0].values.bgpAsn).toBe(65000);expect(graph.network.resources[1].values.bgpAsn).toBe(0);
+ const invalid=structuredClone(graph.network);invalid.resources[0].values.bgpAsn=-1;expect(()=>tools.network({document:JSON.stringify(invalid)})).toThrow();expect(graph.network.resources[0].values.bgpAsn).toBe(65000);
+});
+
+it('blocks a worsened existing consumer constraint atomically instead of comparing wording',()=>{
+ let graph=base();graph.nodes.push({id:'q',service:'sqs',label:'Queue',position:{x:500,y:0}});graph.architecture={nodes:{fn:configurationDocument({timeoutSeconds:30,eventSourceMappings:[{source:{type:'node',id:'q'}}]}) as any,q:configurationDocument({queueType:'standard',visibilitySeconds:10}) as any},relationships:{}};
+ const tools=new ConfigurationTools(()=>graph,g=>{graph=g});tools.load(['sqs']);const before=structuredClone(graph);
+ expect(()=>tools.configure({updates:[{service:'sqs',nodeId:'q',clearFields:[],values:{visibilitySeconds:5}}]})).toThrow('shorter');expect(graph).toEqual(before);
+ tools.configure({updates:[{service:'sqs',nodeId:'q',clearFields:[],values:{retentionSeconds:3600}}]});expect((graph.architecture.nodes.q.values as any).retentionSeconds).toBe(3600);
+});

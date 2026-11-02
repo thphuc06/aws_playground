@@ -1,3 +1,4 @@
+// Diagnostic rule IDs are persistent. Add new IDs; never renumber existing producers.
 import type {NetworkTopology} from './networkTopology';
 import type {ConfigurationFinding,JsonValue} from './configurationTypes';
 
@@ -64,40 +65,40 @@ export function trafficRuleErrors(row:Record<string,JsonValue>,nacl=false):strin
 }
 export function networkFindings(t:NetworkTopology|undefined,nodes:{id:string;service:string;label:string}[]=[]):ConfigurationFinding[]{
  if(!t)return [];const out:ConfigurationFinding[]=[];
- const add=(field:string,detail:string,sourceUrl:string,level:ConfigurationFinding['level']='error')=>out.push({field,title:'Network configuration',detail,sourceUrl,level,category:'design'});
+ const add=(ruleId:string,field:string,detail:string,sourceUrl:string,level:ConfigurationFinding['level']='error',context?:JsonValue)=>out.push({ruleId,field,title:'Network configuration',detail,sourceUrl,level,category:'design',...(context!==undefined?{context}:{})});
  for(const f of t.frames){
-  if(f.cidr){const issue=cidrError(f.cidr,f.kind==='vpc'?'vpc':f.kind==='subnet'?'subnet':'peer');if(issue)add(f.id,f.name+': '+issue,f.kind==='vpc'?networkEvidence.vpc:networkEvidence.subnet);}
-  if(f.kind==='subnet'&&f.cidr){const vpc=t.frames.find(v=>v.id===ownerVpc(t,f.parentId)),child=parseCidr(f.cidr),parent=parseCidr(vpc?.cidr);if(child&&parent&&child.family===parent.family&&!containsCidr(parent,child))add(f.id,f.name+': subnet CIDR is outside '+vpc!.name+'.',networkEvidence.subnet);if(!vpc)add(f.id,f.name+': VPC context is unknown; subnet containment cannot be checked.',networkEvidence.subnet,'warning');}
+  if(f.cidr){const issue=cidrError(f.cidr,f.kind==='vpc'?'vpc':f.kind==='subnet'?'subnet':'peer');if(issue)add('network.001',f.id,f.name+': '+issue,f.kind==='vpc'?networkEvidence.vpc:networkEvidence.subnet);}
+  if(f.kind==='subnet'&&f.cidr){const vpc=t.frames.find(v=>v.id===ownerVpc(t,f.parentId)),child=parseCidr(f.cidr),parent=parseCidr(vpc?.cidr);if(child&&parent&&child.family===parent.family&&!containsCidr(parent,child))add('network.002',f.id,f.name+': subnet CIDR is outside '+vpc!.name+'.',networkEvidence.subnet,'error',{parent:vpc!.cidr??null,child:f.cidr});if(!vpc)add('network.003',f.id,f.name+': VPC context is unknown; subnet containment cannot be checked.',networkEvidence.subnet,'warning');}
  }
  const subnets=t.frames.filter(f=>f.kind==='subnet'&&f.cidr);
- for(let i=0;i<subnets.length;i++)for(let j=i+1;j<subnets.length;j++){const a=subnets[i],b=subnets[j],vpc=ownerVpc(t,a.parentId),ca=parseCidr(a.cidr),cb=parseCidr(b.cidr);if(vpc&&vpc===ownerVpc(t,b.parentId)&&ca&&cb&&overlaps(ca,cb))add(b.id,a.name+' and '+b.name+': subnet CIDRs overlap in the same VPC.',networkEvidence.subnet);}
+ for(let i=0;i<subnets.length;i++)for(let j=i+1;j<subnets.length;j++){const a=subnets[i],b=subnets[j],vpc=ownerVpc(t,a.parentId),ca=parseCidr(a.cidr),cb=parseCidr(b.cidr);if(vpc&&vpc===ownerVpc(t,b.parentId)&&ca&&cb&&overlaps(ca,cb))add('network.004',b.id+'.overlap.'+a.id,a.name+' and '+b.name+': subnet CIDRs overlap in the same VPC.',networkEvidence.subnet,'error',{a:a.cidr??null,b:b.cidr??null,vpc});}
  for(const r of t.resources){
   if(['security-group','network-acl'].includes(r.kind))for(const direction of ['inbound','outbound']){
    const seen=new Set<number>();for(const [i,row]of records(r.values[direction]).entries()){
-    const path=r.id+'.'+direction+'.'+i;for(const message of trafficRuleErrors(row,r.kind==='network-acl'))add(path,r.name+': '+message,r.kind==='network-acl'?networkEvidence.nacl:networkEvidence.sg);
-    if(r.kind==='network-acl'&&row.number!==undefined){const num=row.number;if(typeof num!=='number'||!Number.isInteger(num)||num<1||num>32766)add(path,r.name+': NACL rule number must be an integer from 1 through 32766.',networkEvidence.nacl);else {if(seen.has(num))add(path,r.name+': duplicate '+direction+' NACL rule number '+num+'.',networkEvidence.nacl);seen.add(num);}}
+    const path=r.id+'.'+direction+'.'+i;for(const message of trafficRuleErrors(row,r.kind==='network-acl'))add('network.005',path,r.name+': '+message,r.kind==='network-acl'?networkEvidence.nacl:networkEvidence.sg);
+    if(r.kind==='network-acl'&&row.number!==undefined){const num=row.number;if(typeof num!=='number'||!Number.isInteger(num)||num<1||num>32766)add('network.006',path,r.name+': NACL rule number must be an integer from 1 through 32766.',networkEvidence.nacl);else {if(seen.has(num))add('network.007',path,r.name+': duplicate '+direction+' NACL rule number '+num+'.',networkEvidence.nacl);seen.add(num);}}
    }
   }
-  if(r.kind==='route-table')for(const [i,row]of records(r.values.routes).entries())if(row.destination!==undefined&&!parseCidr(row.destination)&&!/^pl-[a-zA-Z0-9_-]+$/.test(String(row.destination))&&!t.resources.some(p=>p.kind==='prefix-list'&&p.id===row.destination))add(r.id+'.routes.'+i,r.name+': route destination must be a CIDR or prefix-list reference.',networkEvidence.route);
-  if(r.kind==='prefix-list')for(const row of records(r.values.entries)){const c=parseCidr(row.cidr);if(row.cidr!==undefined&&(!c||r.values.addressFamily==='IPv4'&&c.family!==4||r.values.addressFamily==='IPv6'&&c.family!==6))add(r.id,r.name+': entry must match the prefix-list address family.',networkEvidence.sg);}
+  if(r.kind==='route-table')for(const [i,row]of records(r.values.routes).entries())if(row.destination!==undefined&&!parseCidr(row.destination)&&!/^pl-[a-zA-Z0-9_-]+$/.test(String(row.destination))&&!t.resources.some(p=>p.kind==='prefix-list'&&p.id===row.destination))add('network.008',r.id+'.routes.'+i,r.name+': route destination must be a CIDR or prefix-list reference.',networkEvidence.route);
+  if(r.kind==='prefix-list')for(const row of records(r.values.entries)){const c=parseCidr(row.cidr);if(row.cidr!==undefined&&(!c||r.values.addressFamily==='IPv4'&&c.family!==4||r.values.addressFamily==='IPv6'&&c.family!==6))add('network.009',r.id,r.name+': entry must match the prefix-list address family.',networkEvidence.sg);}
   const rvpc=ownerVpc(t,r.frameId);
   if(r.kind==='nat-gateway'){
-   if(r.values.connectivity==='private'&&records(r.values.elasticIps).length)add(r.id,r.name+': a private NAT gateway cannot have Elastic IP allocations.','https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html');
-   if(r.values.connectivity==='private'&&r.values.availabilityMode==='regional')add(r.id,r.name+': regional NAT supports public connectivity only.','https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateways-regional.html');
+   if(r.values.connectivity==='private'&&records(r.values.elasticIps).length)add('network.010',r.id,r.name+': a private NAT gateway cannot have Elastic IP allocations.','https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html');
+   if(r.values.connectivity==='private'&&r.values.availabilityMode==='regional')add('network.011',r.id,r.name+': regional NAT supports public connectivity only.','https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateways-regional.html');
   }
-  if(r.kind==='elastic-ip'&&r.assignedTo.length>1)add(r.id,r.name+': one Elastic IP cannot be associated with multiple targets simultaneously.','https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html');
+  if(r.kind==='elastic-ip'&&r.assignedTo.length>1)add('network.012',r.id,r.name+': one Elastic IP cannot be associated with multiple targets simultaneously.','https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html');
   if(r.kind==='interface-endpoint'){
-   const vpc=t.frames.find(f=>f.id===rvpc);if(r.values.privateDns===true&&(vpc?.dnsSupport===false||vpc?.dnsHostnames===false))add(r.id,r.name+': private DNS requires VPC DNS resolution and DNS hostnames.','https://docs.aws.amazon.com/vpc/latest/privatelink/create-interface-endpoint.html');
-   const zones=new Set<string>();for(const id of r.assignedTo){const subnet=t.frames.find(f=>f.id===id&&f.kind==='subnet');if(subnet?.availabilityZone){if(zones.has(subnet.availabilityZone))add(r.id,r.name+': select at most one endpoint subnet per Availability Zone.','https://docs.aws.amazon.com/vpc/latest/privatelink/create-interface-endpoint.html');zones.add(subnet.availabilityZone);}}
+   const vpc=t.frames.find(f=>f.id===rvpc);if(r.values.privateDns===true&&(vpc?.dnsSupport===false||vpc?.dnsHostnames===false))add('network.013',r.id,r.name+': private DNS requires VPC DNS resolution and DNS hostnames.','https://docs.aws.amazon.com/vpc/latest/privatelink/create-interface-endpoint.html');
+   const zones=new Set<string>();for(const id of r.assignedTo){const subnet=t.frames.find(f=>f.id===id&&f.kind==='subnet');if(subnet?.availabilityZone){if(zones.has(subnet.availabilityZone))add('network.014',r.id,r.name+': select at most one endpoint subnet per Availability Zone.','https://docs.aws.amazon.com/vpc/latest/privatelink/create-interface-endpoint.html');zones.add(subnet.availabilityZone);}}
   }
-  for(const row of records(r.values.securityGroups)){if(typeof row.id==='string'&&t.resources.some(x=>x.id===row.id&&x.kind!=='security-group'))add(r.id,r.name+': security-group reference points to a different resource kind.',networkEvidence.sg);}
+  for(const row of records(r.values.securityGroups)){if(typeof row.id==='string'&&t.resources.some(x=>x.id===row.id&&x.kind!=='security-group'))add('network.015',r.id,r.name+': security-group reference points to a different resource kind.',networkEvidence.sg);}
   for(const targetId of r.assignedTo){
    const target=t.resources.find(x=>x.id===targetId),node=nodes.find(n=>n.id===targetId),frame=t.frames.find(f=>f.id===targetId);
    const targetVpc=ownerVpc(t,target?.frameId??(frame?.id||t.membership[targetId]));
-   if(['route-table','network-acl','gateway-endpoint','interface-endpoint'].includes(r.kind)&&rvpc&&targetVpc&&rvpc!==targetVpc)add(r.id,r.name+': association must stay within the same VPC.',networkEvidence.route);
+   if(['route-table','network-acl','gateway-endpoint','interface-endpoint'].includes(r.kind)&&rvpc&&targetVpc&&rvpc!==targetVpc)add('network.016',r.id+'.assignedTo.'+targetId,r.name+': association must stay within the same VPC.',networkEvidence.route,'error',{owner:rvpc,target:targetVpc});
    if(r.kind==='security-group'){
-    if(node&&!['ec2','lambda','ecs','eks','elb','rds','aurora','elasticache','efs','opensearch'].includes(node.service)||target&&!['network-interface','interface-endpoint'].includes(target.kind))add(r.id,r.name+': incompatible security-group attachment target.',networkEvidence.eni);
-    if(rvpc&&targetVpc&&rvpc!==targetVpc)out.push({field:r.id,title:'Unmodeled VPC association',detail:r.name+': attachment crosses VPCs. AWS requires a supported Security Group VPC Association; this editor cannot represent that association. Keep the assignment within its declared VPC.',sourceUrl:'https://docs.aws.amazon.com/vpc/latest/userguide/security-group-assoc.html',level:'error',category:'app-limit'});
+    if(node&&!['ec2','lambda','ecs','eks','elb','rds','aurora','elasticache','efs','opensearch'].includes(node.service)||target&&!['network-interface','interface-endpoint'].includes(target.kind))add('network.017',r.id+'.assignedTo.'+targetId,r.name+': incompatible security-group attachment target.',networkEvidence.eni);
+    if(rvpc&&targetVpc&&rvpc!==targetVpc)out.push({ruleId:'network.direct.1',field:r.id+'.assignedTo.'+targetId,context:{owner:rvpc,target:targetVpc},title:'Unmodeled VPC association',detail:r.name+': attachment crosses VPCs. AWS requires a supported Security Group VPC Association; this editor cannot represent that association. Keep the assignment within its declared VPC.',sourceUrl:'https://docs.aws.amazon.com/vpc/latest/userguide/security-group-assoc.html',level:'error',category:'app-limit'});
    }
   }
  }
