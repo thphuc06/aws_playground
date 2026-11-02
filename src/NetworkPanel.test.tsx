@@ -1,0 +1,9 @@
+// @vitest-environment jsdom
+import React,{useState} from 'react';
+import {afterEach,it,expect} from 'vitest';
+import {render,screen,fireEvent,cleanup} from '@testing-library/react';
+import NetworkPanel from './NetworkPanel';
+import type {Graph} from './architectureReview';
+afterEach(cleanup);
+it('creates a frame around an existing service and preserves the service when removing the frame',()=>{let latest:Graph;function Harness(){const [g,set]=useState<Graph>({version:1,nodes:[{id:'fn',service:'lambda',label:'Worker',position:{x:100,y:150}}],edges:[],configs:{}}),[selected,select]=useState('');latest=g;return <NetworkPanel graph={g} onChange={set} selectedFrame={selected} onSelectFrame={select}/>;}render(<Harness/>);fireEvent.click(screen.getByText('+ Add frame'));expect(latest!.network!.membership.fn).toBe(latest!.network!.frames[0].id);fireEvent.click(screen.getByText('Remove frame · keep contents'));expect(latest!.nodes).toHaveLength(1);expect(latest!.network!.frames).toHaveLength(0)});
+it('does not save a new shared resource until Save and retains cancellation',()=>{let latest:Graph;function Harness(){const [g,set]=useState<Graph>({version:1,nodes:[],edges:[],configs:{}});latest=g;return <NetworkPanel graph={g} onChange={set} selectedFrame="" onSelectFrame={()=>{}}/>;}render(<Harness/>);fireEvent.click(screen.getByRole('button',{name:'network resources'}));fireEvent.change(screen.getByLabelText('Create network resource'),{target:{value:'route-table'}});expect(latest!.network).toBeUndefined();fireEvent.click(screen.getByText('Save shared resource'));expect(latest!.network!.resources).toHaveLength(1);fireEvent.change(screen.getByLabelText('Create network resource'),{target:{value:'security-group'}});fireEvent.click(screen.getByText('Cancel edits'));expect(latest!.network!.resources).toHaveLength(1)});
