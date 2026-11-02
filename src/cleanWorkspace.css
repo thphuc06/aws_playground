@@ -1,0 +1,134 @@
+/* Clean Workspace: shared roles used by the existing component styles. */
+:root {
+  color-scheme: light;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--page);
+  --page: #f4f5f7;
+  --surface: #ffffff;
+  --surface-subtle: #f7f8fa;
+  --surface-hover: #edf0f4;
+  --surface-selected: #e5eaf0;
+  --text: #202832;
+  --text-secondary: #475569;
+  --text-muted: #596779;
+  --border: #d6dde5;
+  --border-strong: #8491a2;
+  --accent: #9a4a0e;
+  --accent-text: #8a410b;
+  --accent-soft: #fff3e6;
+  --accent-line: #b4773e;
+  --success-text: #216644;
+  --success-soft: #edf7f0;
+  --success-line: #6b9f7f;
+  --danger-text: #a42c35;
+  --danger-soft: #fff1f1;
+  --danger-line: #c36a73;
+  --info-text: #245e99;
+  --info-soft: #edf5ff;
+  --info-line: #6e95bf;
+  --violet-text: #69408f;
+  --violet-soft: #f6f1fc;
+  --violet-line: #a58cbd;
+  --focus: #2563eb;
+  --canvas: #fbfcfd;
+  --canvas-dot: #d7dee7;
+  --edge: #64748b;
+  --shadow: rgb(25 39 57 / 10%);
+  --scrim: rgb(25 39 57 / 30%);
+  --emphasis: rgb(154 74 14 / 20%);
+  /* Retain established aliases used by older components. */
+  --muted: var(--text-muted);
+  --line: var(--border);
+  --orange: var(--accent-text);
+  --panel: var(--surface);
+  --green: var(--success-text);
+}
+
+body { background: var(--page); color: var(--text); }
+h1, h2, h3, .brand { font-family: inherit; }
+button, input, select, textarea { font-family: inherit; }
+button:hover:not(:disabled) { filter: none; }
+button:disabled { opacity: .62; }
+body :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 3px;
+}
+.sidebar, .topbar { background: var(--surface); }
+.topbar { border-bottom-color: var(--border); }
+.brand-icon { background: var(--accent-soft); color: var(--accent-text); box-shadow: none; }
+.course-card { background: var(--surface-subtle); }
+.main-nav button.active { background: var(--accent-soft); color: var(--accent-text); box-shadow: inset 3px 0 var(--accent); }
+.main-nav button:hover, .mission-nav button:hover { background: var(--surface-hover); }
+.search-wrap { background: var(--surface-subtle); }
+.search-wrap input { color: var(--text); }
+.user-badge > span { background: var(--surface-selected); color: var(--text-secondary); }
+.progress-track span, .home-weight-track span { background: var(--accent); }
+.home-hero aside { background: var(--surface); box-shadow: 0 8px 30px var(--shadow); }
+.home-hero h1 em { color: var(--accent-text); }
+.mission-card.current { background: var(--accent-soft); box-shadow: none; }
+.lab, .builder-page { box-shadow: none; }
+.run-button, .proposal-adopt button:not(:disabled), .config-save-bar button:first-of-type {
+  background: var(--accent); border-color: var(--accent); color: #ffffff; box-shadow: none;
+}
+.workspace-modes button.active { background: var(--accent-soft); box-shadow: inset 3px 0 var(--accent); }
+
+/* Solid, quiet workspace surfaces in embedded and fullscreen modes. */
+.builder-canvas, .builder-canvas .react-flow, .builder-page:fullscreen,
+.architecture-studio .builder-page.is-focused { background: var(--canvas); }
+.builder-top, .builder-workbench-toolbar, .builder-catalog, .eb-drawer-heading,
+.config-tabs, .config-save-bar { background: var(--surface); }
+.builder-page :is(.network-settings-panel, .eb-settings-drawer.config-settings-panel),
+.architecture-studio .builder-page.is-focused :is(.network-settings-panel, .eb-settings-drawer.config-settings-panel:not(.is-expanded)) {
+  background: var(--surface); backdrop-filter: none; box-shadow: 0 8px 30px var(--shadow);
+}
+.builder-canvas .react-flow__node:not(.react-flow__node-networkFrame) {
+  background: var(--surface); border-color: var(--border-strong); box-shadow: 0 2px 8px var(--shadow);
+  color: var(--text); border-radius: 9px;
+}
+.builder-canvas .react-flow__node:not(.react-flow__node-networkFrame).selected {
+  background: var(--accent-soft); border-color: var(--accent);
+}
+.react-flow__node-networkFrame { background: rgb(231 237 245 / 28%); }
+.network-frame-title { background: var(--surface-hover); color: var(--text-secondary); border-bottom-color: var(--border); }
+.builder-node-content .builder-node-status { color: var(--violet-text); }
+.builder-node-content .builder-node-status.modeled { color: var(--success-text); }
+.network-membership { color: var(--text-muted); }
+.architecture-studio .builder-canvas .react-flow__node-default .react-flow__handle::after { background: var(--edge); border-color: var(--surface); }
+.architecture-studio .builder-canvas .react-flow__node-default:hover .react-flow__handle::after,
+.architecture-studio .builder-canvas .react-flow__node-default.selected .react-flow__handle::after { background: var(--accent); box-shadow: 0 0 0 2px var(--emphasis); }
+.architecture-studio .edge-bend-handle { background: var(--accent)!important; border-color: var(--surface)!important; }
+.architecture-studio .edge-bend-handle.curve-grip { background: var(--info-text)!important; }
+.architecture-studio .edge-bend-handle.edge-segment-grip,
+.architecture-studio .edge-bend-handle[data-handle-kind=corner] { background: var(--accent)!important; }
+.builder-canvas .react-flow__node.diagram-emphasis { box-shadow: 0 0 0 4px var(--emphasis)!important; }
+@keyframes diagram-emphasis-pulse { 50% { box-shadow: 0 0 0 7px var(--emphasis); } }
+.react-flow__controls { box-shadow: 0 2px 8px var(--shadow); }
+.react-flow__controls button { background: var(--surface); color: var(--text); border-bottom-color: var(--border); }
+.react-flow__controls button:hover { background: var(--surface-hover); }
+.react-flow__attribution { background: var(--surface); color: var(--text-muted); }
+.builder-page :is(input, select, textarea), .assistant-controls :is(input, select, textarea) {
+  color: var(--text); background: var(--surface); border-color: var(--border-strong);
+}
+.builder-page :is(input, select, textarea)::placeholder,
+.assistant-controls :is(input, select, textarea)::placeholder { color: var(--text-muted); }
+.config-document-editor .cm-editor { background: var(--surface); color: var(--text); font-size: 13px; }
+.config-document-editor .cm-gutters { background: var(--surface-subtle); color: var(--text-muted); border-right-color: var(--border); }
+.config-document-editor .cm-activeLine, .config-document-editor .cm-activeLineGutter { background: var(--info-soft); }
+.config-document-editor .cm-cursor { border-left-color: var(--text); }
+.config-document-editor .cm-focused .cm-selectionBackground { background: var(--surface-selected); }
+.config-document-editor .cm-tooltip { background: var(--surface); color: var(--text); border-color: var(--border); }
+.report-card, .assistant-report .service-explanation { background: var(--surface); }
+.completion-summary { background: var(--surface-subtle); }
+.completion-summary.gaps, .completion-summary.needs-verification { background: var(--accent-soft); }
+.report-citations button { background: var(--info-soft); color: var(--info-text); }
+.report-severity.error, .config-error { background: var(--danger-soft); color: var(--danger-text); }
+.report-severity.warning, .config-warning { background: var(--accent-soft); color: var(--accent-text); }
+.report-severity.info, .config-info { background: var(--info-soft); color: var(--info-text); }
+.proposal-outcome { background: var(--success-soft); color: var(--success-text); }
+.proposal-outcome.failed { background: var(--danger-soft); color: var(--danger-text); }
+.theory-content, .report-reading { line-height: 1.8; }
+@media (pointer: coarse) {
+  .builder-page :is(button, input, select), .assistant-controls :is(button, input, select) { min-height: 44px; }
+  .builder-page :is(input, select, textarea), .assistant-controls :is(input, select, textarea) { font-size: 16px; }
+}
