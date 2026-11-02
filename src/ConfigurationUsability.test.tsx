@@ -3,6 +3,7 @@ import React from 'react';
 import {afterEach,it,expect,vi} from 'vitest';
 import {render,screen,fireEvent,cleanup,within} from '@testing-library/react';
 import ConfigurationInspector from './ConfigurationInspector';
+import ConfigurationHelp from './ConfigurationHelp';
 import {configurationDocument} from './configurationRegistry';
 vi.mock('./ConfigurationDocumentEditor',()=>({default:()=>null}));
 afterEach(cleanup);
@@ -12,3 +13,12 @@ it('fills missing defaults without overwriting existing settings',()=>{const sav
 it('supports keyboard tabs and focuses a problem field',()=>{render(<ConfigurationInspector service="ec2" values={configurationDocument({imdsHopLimit:99}) as any} onChange={()=>{}}/>);fireEvent.keyDown(screen.getByRole('tab',{name:'Configuration'}),{key:'ArrowRight'});expect(document.activeElement).toBe(screen.getByRole('tab',{name:'Permissions'}));fireEvent.click(screen.getByRole('button',{name:'Go to imdsHopLimit'}));expect(document.activeElement).toBe(screen.getByRole('spinbutton',{name:/^IMDS response hop limit/}));const selected=screen.getByRole('tab',{name:'Permissions'});expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(selected.id)});
 it('labels ICMP and ALL rules contextually without discarding saved port values',()=>{const save=vi.fn();render(<ConfigurationInspector service="ec2" values={configurationDocument({securityRules:[{protocol:'icmp',fromPort:8,toPort:0}]}) as any} onChange={save}/>);fireEvent.click(screen.getByRole('tab',{name:'Networking'}));expect(screen.getByLabelText('ICMP type')).toBeTruthy();expect(screen.getByLabelText('ICMP code')).toBeTruthy();const protocol=screen.getByLabelText('Protocol');fireEvent.change(protocol,{target:{value:'all'}});expect(screen.getByRole('spinbutton',{name:/^From port/}).matches(':disabled')).toBe(true);fireEvent.click(screen.getByRole('button',{name:'Save configuration'}));expect((save.mock.calls[0][0].values as any).securityRules[0].fromPort).toBe(8)});
 it('does not count an empty security rule as populated configuration',()=>{render(<ConfigurationInspector service="ec2" values={{}} onChange={()=>{}}/>);fireEvent.click(screen.getByRole('tab',{name:'Networking'}));fireEvent.click(screen.getByRole('button',{name:'Add security-group rules row'}));expect(screen.getByText(/0\/.*applicable fields populated.*1 empty rows/)).toBeTruthy()});
+
+it('focuses the second table row for its diagnostic rather than the first row',()=>{
+ render(<ConfigurationInspector service="ec2" values={configurationDocument({securityRules:[{protocol:'tcp',fromPort:80,toPort:80},{protocol:'tcp',fromPort:100,toPort:90}]}) as any} onChange={()=>{}}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Go to securityRules.1'}));expect(screen.getByRole('tab',{name:'Networking'}).getAttribute('aria-selected')).toBe('true');expect(document.activeElement?.id).toMatch(/^configuration-securityRules-1-/);
+});
+it('renders evidence operation and API path without replacement characters',()=>{
+ const {container}=render(<ConfigurationHelp field={{key:'timeout',label:'Timeout',kind:'number',section:'configuration',help:'A request timeout.',evidence:{status:'needs-context',operation:'UpdateFunctionConfiguration',apiPath:'Timeout'}}}/>);
+ expect(container.textContent).toContain('UpdateFunctionConfiguration');expect(container.textContent).toContain('Timeout');expect(container.textContent).not.toContain('\uFFFD');
+});

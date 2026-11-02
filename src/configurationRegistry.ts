@@ -57,7 +57,8 @@ export function validateConfiguration(service:string,input:unknown,enforceBounds
   const field=fields.find(f=>f.key===key);if(!field){error('shape.003',key,'Unknown configuration field','Unknown configuration field: '+key);continue;}
   if(typeof value==='string'&&field.kind==='json')for(const issue of policyFieldQuotaIssues(service,key,value))error('shape.004',key,'Policy document quota',issue);
   for(const issue of checkField(field,value,enforceBounds))error('shape.005',key,'Check '+field.label,issue);
-  const applicable=fieldApplicable(field,input.values);if(applicable===false)error('shape.006',key,'Option unavailable for this variant',field.label+' is not applicable to the selected '+field.when!.field+'. Clear it or choose the compatible variant.');
+  // Editable stored documents preserve variant-incompatible values for repair. Mutation validation remains strict.
+  const applicable=fieldApplicable(field,input.values);if(enforceBounds&&applicable===false)error('shape.006',key,'Option unavailable for this variant',field.label+' is not applicable to the selected '+field.when!.field+'. Clear it or choose the compatible variant.');
  }
  if(Object.keys(input.legacyNotes).length)findings.push({ruleId:'shape.direct.1',level:'info',title:'Legacy notes preserved',detail:'Old prose was not assumed to be configured permissions or network state.',category:'unknown'});
  return findings;

@@ -37,3 +37,17 @@ it('blocks a worsened existing consumer constraint atomically instead of compari
  expect(()=>tools.configure({updates:[{service:'sqs',nodeId:'q',clearFields:[],values:{visibilitySeconds:5}}]})).toThrow('shorter');expect(graph).toEqual(before);
  tools.configure({updates:[{service:'sqs',nodeId:'q',clearFields:[],values:{retentionSeconds:3600}}]});expect((graph.architecture.nodes.q.values as any).retentionSeconds).toBe(3600);
 });
+
+it('does not hide a new endpoint AZ conflict behind an existing conflict',()=>{
+ let graph:Graph={version:1,nodes:[],edges:[],configs:{},network:{version:1,membership:{},frames:[{id:'v',kind:'vpc',name:'VPC',x:0,y:0,width:900,height:700},...['a','b','c'].map((id,i)=>({id,kind:'subnet' as const,name:id,parentId:'v',availabilityZone:i<2?'az1':'az2',x:10+i*250,y:70,width:240,height:200}))],resources:[{id:'ep',kind:'interface-endpoint',name:'Endpoint',frameId:'v',assignedTo:['a','b','c'],values:{}}]}};
+ const tools=new ConfigurationTools(()=>graph,g=>{graph=g}),before=structuredClone(graph),next=structuredClone(graph.network!);next.frames.find(f=>f.id==='c')!.availabilityZone='az1';
+ expect(()=>tools.network({document:JSON.stringify(next)})).toThrow('at most one');expect(graph).toEqual(before);
+});
+it('preserves unrelated variant-incompatible declarations during node and network repair',()=>{
+ let graph:Graph={version:1,nodes:[{id:'a',service:'ec2',label:'A',position:{x:0,y:0}},{id:'b',service:'lambda',label:'B',position:{x:400,y:0}}],edges:[],configs:{},architecture:{nodes:{a:configurationDocument({imdsHopLimit:99}) as any,b:configurationDocument({packageType:'Image',runtime:'python3.12'}) as any},relationships:{}}};
+ const tools=new ConfigurationTools(()=>graph,g=>{graph=g});tools.load(['ec2','lambda']);tools.configure({updates:[{service:'ec2',nodeId:'a',clearFields:[],values:{imdsHopLimit:64}}]});
+ tools.network({document:JSON.stringify({version:1,frames:[{id:'v',kind:'vpc',name:'VPC',cidr:'10.0.0.0/16',x:0,y:0,width:700,height:400}],membership:{},resources:[]})});
+ expect((graph.architecture!.nodes.b.values as any).runtime).toBe('python3.12');
+ expect(()=>tools.configure({updates:[{service:'lambda',nodeId:'b',clearFields:[],values:{memoryMb:256}}]})).toThrow('not applicable');
+ tools.configure({updates:[{service:'lambda',nodeId:'b',clearFields:['runtime'],values:{memoryMb:256}}]});expect((graph.architecture!.nodes.b.values as any).runtime).toBeUndefined();
+});
