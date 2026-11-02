@@ -29,6 +29,13 @@ export interface LearningAttempt {
   outcome: 'correct' | 'incorrect' | 'unanswered';
   assistance: 'none' | 'answer-revealed';
 }
+export interface FeedbackExposure {
+  id: string;
+  sessionId: string;
+  questionId: string;
+  questionRevision: number;
+  revealedAt: string;
+}
 export type PracticeMode = 'learn' | 'mixed' | 'mistakes' | 'due-review';
 export interface LearningSession {
   id: string;
@@ -49,7 +56,8 @@ export interface LearningProgress {
   legacyAcknowledgements: {legacyKey: string; questionId?: string; provenance: 'exam-and-time-unknown'}[];
   attempts: LearningAttempt[];
   sessions: LearningSession[];
+  feedbackExposures: FeedbackExposure[];
   legacyRaw?: string;
 }
-export const emptyLearningProgress = (): LearningProgress => ({schemaVersion:2,read:[],bookmarks:[],missions:[],legacyAcknowledgements:[],attempts:[],sessions:[]});
+export const emptyLearningProgress = (): LearningProgress => ({schemaVersion:2,read:[],bookmarks:[],missions:[],legacyAcknowledgements:[],attempts:[],sessions:[],feedbackExposures:[]});
 export const isLearningExam = (v: unknown): v is LearningExam => v === 'DVA-C02' || v === 'DVA-C03';

@@ -1,10 +1,10 @@
 import type {LearningExam,LearningProgress,LearningSession,PracticeMode,StudyQuestion} from './questionTypes';
-import {questionAttempts,reviewState,scoreQuestion} from './practiceEngine';
+import {mistakeQuestions,questionAttempts,reviewState,scoreQuestion} from './practiceEngine';
 
 export function eligibleQuestions(bank:StudyQuestion[],progress:LearningProgress,exam:LearningExam,mode:PracticeMode,chapter?:string,now=new Date()):StudyQuestion[]{
- return bank.filter(q=>q.examVersions.includes(exam)&&(!chapter||q.chapterIds.includes(chapter))).filter(q=>{
-  const attempts=questionAttempts(progress,exam,q.id);
-  if(mode==='mistakes')return attempts.at(-1)?.outcome==='incorrect';
+ const pool=mode==='mistakes'?mistakeQuestions(bank,progress,exam,now):bank;
+ return pool.filter(q=>q.examVersions.includes(exam)&&(!chapter||q.chapterIds.includes(chapter))).filter(q=>{
+  const attempts=questionAttempts(progress,exam,q.id).filter(a=>a.questionRevision===q.revision);
   if(mode==='due-review')return reviewState(attempts,now).due;
   return true;
  });
@@ -24,13 +24,25 @@ export function submitSessionAnswer(progress:LearningProgress,sessionId:string,s
  const item=session.items[session.currentItem];if(!item)throw new Error('Practice question is unavailable.');
  const attemptId=`${session.id}:${session.currentItem}`;
  if(progress.attempts.some(a=>a.id===attemptId))return progress;
- const previous=progress.attempts.filter(a=>a.exam===session.exam&&a.questionId===item.question.id);
- const revealedToday=previous.some(a=>a.questionRevision===item.question.revision&&a.submittedAt.slice(0,10)===now.toISOString().slice(0,10)&&progress.sessions.some(s=>s.id===a.sessionId&&(s.mode!=='mixed'||s.status==='completed')));
- return {...progress,attempts:[...progress.attempts,{id:attemptId,sessionId,exam:session.exam,questionId:item.question.id,questionRevision:item.question.revision,skillRefs:item.question.skillRefs.filter(s=>s.startsWith(session.exam+':')),selectedOptionIds:[...selected],optionOrder:[...item.optionOrder],submittedAt:now.toISOString(),outcome:scoreQuestion(item.question,selected),assistance:revealedToday?'answer-revealed':'none'}]};
+ const revealedToday=(progress.feedbackExposures??[]).some(exposure=>exposure.questionId===item.question.id&&exposure.questionRevision===item.question.revision&&exposure.revealedAt.slice(0,10)===now.toISOString().slice(0,10)&&Date.parse(exposure.revealedAt)<=now.getTime());
+ const answered:LearningProgress={...progress,attempts:[...progress.attempts,{id:attemptId,sessionId,exam:session.exam,questionId:item.question.id,questionRevision:item.question.revision,skillRefs:item.question.skillRefs.filter(s=>s.startsWith(session.exam+':')),selectedOptionIds:[...selected],optionOrder:[...item.optionOrder],submittedAt:now.toISOString(),outcome:scoreQuestion(item.question,selected),assistance:revealedToday?'answer-revealed':'none'}]};
+ return session.mode==='mixed'?answered:recordFeedbackExposure(answered,sessionId,item.question.id,now);
 }
 export function advanceSession(progress:LearningProgress,sessionId:string,now=new Date()):LearningProgress{
  const session=progress.sessions.find(s=>s.id===sessionId);if(!session||session.status!=='active')return progress;
  if(!progress.attempts.some(a=>a.id===`${session.id}:${session.currentItem}`))throw new Error('Submit or skip this question before continuing.');
  const done=session.currentItem+1>=session.items.length;
- return {...progress,sessions:progress.sessions.map(s=>s.id!==sessionId?s:{...s,currentItem:done?s.currentItem:s.currentItem+1,status:done?'completed':'active',...(done?{completedAt:now.toISOString()}:{})})};
+ const advanced:LearningProgress={...progress,sessions:progress.sessions.map(s=>s.id!==sessionId?s:{...s,currentItem:done?s.currentItem:s.currentItem+1,status:done?'completed':'active',...(done?{completedAt:now.toISOString()}:{})})};
+ return done?revealSessionFeedback(advanced,sessionId,now):advanced;
+}
+export function recordFeedbackExposure(progress:LearningProgress,sessionId:string,questionId:string,now=new Date()):LearningProgress{
+ const session=progress.sessions.find(s=>s.id===sessionId),item=session?.items.find(i=>i.question.id===questionId);
+ if(!session||!item||!progress.attempts.some(a=>a.sessionId===sessionId&&a.questionId===questionId)||session.mode==='mixed'&&session.status!=='completed')return progress;
+ const revealedAt=now.toISOString(),id=`${sessionId}:${questionId}:${item.question.revision}:${revealedAt}`;
+ if((progress.feedbackExposures??[]).some(exposure=>exposure.id===id))return progress;
+ return {...progress,feedbackExposures:[...(progress.feedbackExposures??[]),{id,sessionId,questionId,questionRevision:item.question.revision,revealedAt}]};
+}
+export function revealSessionFeedback(progress:LearningProgress,sessionId:string,now=new Date()):LearningProgress{
+ const session=progress.sessions.find(s=>s.id===sessionId);if(!session||session.status!=='completed')return progress;
+ return session.items.reduce((next,item)=>recordFeedbackExposure(next,sessionId,item.question.id,now),progress);
 }

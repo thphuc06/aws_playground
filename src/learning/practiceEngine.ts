@@ -7,6 +7,25 @@ export function scoreQuestion(question:StudyQuestion,selected:string[]):Learning
   return selected.length===question.correctOptionIds.length&&selected.every(id=>question.correctOptionIds.includes(id))?'correct':'incorrect';
 }
 export function questionAttempts(progress:LearningProgress,exam:LearningExam,id:string){return progress.attempts.filter(a=>a.exam===exam&&a.questionId===id).sort((a,b)=>a.submittedAt.localeCompare(b.submittedAt));}
+/** Only an independent, answered attempt can resolve an earlier independent mistake. */
+export function unresolvedMistakeRevisions(attempts:LearningAttempt[],now=new Date()):number[]{
+  const latest=new Map<number,LearningAttempt>();
+  for(const a of [...attempts].sort((a,b)=>a.submittedAt.localeCompare(b.submittedAt))){
+    if(a.assistance!=='none'||a.outcome==='unanswered'||Date.parse(a.submittedAt)>now.getTime())continue;
+    latest.set(a.questionRevision,a);
+  }
+  return [...latest.values()].filter(a=>a.outcome==='incorrect').map(a=>a.questionRevision);
+}
+export function mistakeQuestions(bank:StudyQuestion[],progress:LearningProgress,exam:LearningExam,now=new Date()):StudyQuestion[]{
+  return bank.filter(q=>q.examVersions.includes(exam)).flatMap(question=>{
+    const revision=unresolvedMistakeRevisions(questionAttempts(progress,exam,question.id),now)[0];
+    if(revision===undefined)return [];
+    if(revision===question.revision)return [question];
+    // An answer to a different revision must not silently clear an older mistake.
+    const pinned=progress.sessions.filter(s=>s.exam===exam).flatMap(s=>s.items).find(item=>item.question.id===question.id&&item.question.revision===revision)?.question;
+    return pinned?[pinned]:[];
+  });
+}
 /** A transparent revision heuristic, not a prediction of exam performance. */
 export function reviewState(attempts:LearningAttempt[],now=new Date()):{due:boolean;dueAt?:string;streak:number} {
   if(!attempts.length)return {due:false,streak:0};
