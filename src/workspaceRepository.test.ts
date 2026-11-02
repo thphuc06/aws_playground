@@ -1,0 +1,28 @@
+// @vitest-environment jsdom
+import {IDBFactory} from 'fake-indexeddb';
+import {describe,it,expect,afterEach} from 'vitest';
+import {createWorkspace,workspaceKey} from './architectureWorkspace';
+import {createWorkspaceArchive,prepareWorkspaceImport,serializeWorkspaceArchive} from './workspaceArchive';
+import {openLocalRepository,RepositoryConflictError} from './workspaceDatabase';
+import {ACTIVE_WORKSPACE_KEY,loadWorkspaceRepository,saveWorkspaceSession,importWorkspaceCopy,listWorkspaceCopies,activateWorkspaceCopy} from './workspaceRepository';
+afterEach(()=>localStorage.clear());
+describe('workspace storage migration and copies',()=>{
+ it('copies legacy data into a durable record without altering the original storage bytes',async()=>{
+  const w=createWorkspace();w.purpose='Synthetic legacy architecture';const raw=JSON.stringify(w);localStorage.setItem(workspaceKey,raw);const factory=new IDBFactory(),db=await openLocalRepository(factory,'legacy');try{const result=await loadWorkspaceRepository(db,localStorage);expect(result.kind).toBe('ready');if(result.kind!=='ready')throw new Error('Not ready');const changed={...w,purpose:'Changed copy'};await saveWorkspaceSession(db,result.session,changed);expect(localStorage.getItem(workspaceKey)).toBe(raw);db.close();const reopened=await openLocalRepository(factory,'legacy');const reload=await loadWorkspaceRepository(reopened,localStorage);expect(reload.kind==='ready'&&reload.session.record.value.workspace.purpose).toBe('Changed copy');reopened.close();}finally{db.close();}
+ });
+ it('exposes corrupt legacy bytes and creates no empty replacement',async()=>{
+  localStorage.setItem(workspaceKey,'{broken legacy');const db=await openLocalRepository(new IDBFactory(),'broken');try{const result=await loadWorkspaceRepository(db,localStorage);expect(result.kind).toBe('recovery');if(result.kind==='recovery')expect(result.payloads).toEqual([{label:workspaceKey,raw:'{broken legacy'}]);expect(await db.read(ACTIVE_WORKSPACE_KEY)).toBeNull();expect(await db.list('workspace:')).toEqual([]);expect(localStorage.getItem(workspaceKey)).toBe('{broken legacy');}finally{db.close();}
+ });
+ it('imports as an independent new copy and can reopen the retained original',async()=>{
+  const db=await openLocalRepository(new IDBFactory(),'copies');try{const first=await loadWorkspaceRepository(db,localStorage);if(first.kind!=='ready')throw new Error('Not ready');const originalId=first.session.record.value.id;const incoming=createWorkspace();incoming.purpose='Imported purpose';const preview=prepareWorkspaceImport(serializeWorkspaceArchive(createWorkspaceArchive(incoming,{editorRecovery:{version:1,entries:[{scope:'original',fieldPath:'policy',format:'json',raw:'{unfinished'}]}})));const copied=await importWorkspaceCopy(db,preview,'Imported');expect(copied.record.value.id).not.toBe(originalId);expect(copied.record.value.retainedFacets?.editorRecovery?.entries[0].raw).toBe('{unfinished');expect(await listWorkspaceCopies(db)).toHaveLength(2);const reopened=await activateWorkspaceCopy(db,originalId);expect(reopened.record.value.workspace.purpose).toBe('');const persisted=await loadWorkspaceRepository(db,localStorage);expect(persisted.kind==='ready'&&persisted.session.record.value.id).toBe(originalId);}finally{db.close();}
+ });
+ it('commits workspace and opted-in learning recovery/import together',async()=>{
+  const db=await openLocalRepository(new IDBFactory(),'facets');try{await loadWorkspaceRepository(db,localStorage);await db.commit([{key:'learning-v2',value:{attempts:['old']},expectedRevision:null}]);const preview=prepareWorkspaceImport(serializeWorkspaceArchive(createWorkspaceArchive(createWorkspace(),{learning:{attempts:['new']}})));await importWorkspaceCopy(db,preview,'With progress',[{key:'learning-recovery:old',value:{attempts:['old']},expectedRevision:null},{key:'learning-v2',value:{attempts:['new']},expectedRevision:1}]);expect((await db.read('learning-v2'))?.value).toEqual({attempts:['new']});expect((await db.read('learning-recovery:old'))?.value).toEqual({attempts:['old']});}finally{db.close();}
+ });
+ it('does not switch workspace when an optional learning import conflicts',async()=>{
+  const db=await openLocalRepository(new IDBFactory(),'facet-conflict');try{const first=await loadWorkspaceRepository(db,localStorage);if(first.kind!=='ready')throw new Error('Not ready');await db.commit([{key:'learning-v2',value:{attempts:['newer']},expectedRevision:null}]);const preview=prepareWorkspaceImport(serializeWorkspaceArchive(createWorkspaceArchive(createWorkspace())));await expect(importWorkspaceCopy(db,preview,'Rejected',[{key:'learning-v2',value:{attempts:[]},expectedRevision:99}])).rejects.toBeInstanceOf(RepositoryConflictError);expect(await listWorkspaceCopies(db)).toHaveLength(1);expect((await db.read<{id:string}>(ACTIVE_WORKSPACE_KEY))?.value.id).toBe(first.session.record.value.id);}finally{db.close();}
+ });
+ it('blocks a stale tab from saving over a workspace switch',async()=>{
+  const db=await openLocalRepository(new IDBFactory(),'switch-conflict');try{const first=await loadWorkspaceRepository(db,localStorage);if(first.kind!=='ready')throw new Error('Not ready');const preview=prepareWorkspaceImport(serializeWorkspaceArchive(createWorkspaceArchive(createWorkspace())));await importWorkspaceCopy(db,preview,'Other tab');await expect(saveWorkspaceSession(db,first.session,{...createWorkspace(),purpose:'Stale tab'})).rejects.toBeInstanceOf(RepositoryConflictError);expect((await db.read<{workspace:{purpose:string}}>(first.session.record.key))?.value.workspace.purpose).toBe('');}finally{db.close();}
+ });
+});
