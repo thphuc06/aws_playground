@@ -1,0 +1,5 @@
+import {it,expect} from 'vitest';
+import {chooseLearningPath,currentLearningPath,learningPathStorageKey} from './learningPathState';
+const memory=()=>{const data=new Map<string,string>();return {getItem:(key:string)=>data.get(key)??null,setItem:(key:string,value:string)=>{data.set(key,value)}}};
+it('keeps previous/next in the chosen focused path across reopening a chapter',()=>{const storage=memory();chooseLearningPath(storage,'DVA-C03','diagnose-request');const path=currentLearningPath(storage,'DVA-C03','dev-lambda')!;expect(path.id).toBe('diagnose-request');expect(path.steps[path.steps.findIndex(s=>s.lessonId==='dev-lambda')+1].lessonId).toBe('observe-debug')});
+it('does not carry an incompatible path into another exam and tolerates corrupt preferences',()=>{const storage=memory();chooseLearningPath(storage,'DVA-C03','c03-application');expect(currentLearningPath(storage,'DVA-C02','dev-lambda')?.id).toBe('c02-foundation');storage.setItem(learningPathStorageKey,'{broken');expect(currentLearningPath(storage,'DVA-C03','dev-lambda')?.id).toBe('c03-application')});

@@ -3,6 +3,7 @@ import {learningGlossary,learningPaths,serviceComparisons} from './learning/serv
 import {chapters} from './content';
 import {canvasCatalog} from './serviceCatalog';
 import type {ExamVersionId} from './examVersions';
+import {chooseLearningPath} from './learningPathState';
 const normalized=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 export function LearningGlossary({serviceId,chapterId}:{serviceId?:string;chapterId?:string}){
  const [query,setQuery]=useState(''),[language,setLanguage]=useState('both');
@@ -15,5 +16,6 @@ export function ServiceComparisons({serviceId,onService}:{serviceId?:string;onSe
 }
 export function LearningPaths({exam,read,onOpen}:{exam:ExamVersionId;read:string[];onOpen:(id:string)=>void}){
  const paths=learningPaths.filter(p=>p.examVersions.includes(exam));
- return <section className="learning-paths"><h2>Suggested learning paths</h2><p>Choose an order that fits your goal. Prerequisites guide your study; every lesson remains open.</p>{paths.map(path=>{const next=path.steps.find(s=>!read.includes(s.lessonId));return <details key={path.id}><summary>{path.title}<span>{path.steps.filter(s=>read.includes(s.lessonId)).length}/{path.steps.length} read</span></summary><p>{path.description}</p>{next&&<button onClick={()=>onOpen(next.lessonId)}>Start next unread lesson</button>}<ol>{path.steps.map(step=><li key={step.lessonId}><button onClick={()=>onOpen(step.lessonId)}>{chapters.find(c=>c.id===step.lessonId)?.title??step.lessonId}{read.includes(step.lessonId)?' · Read':''}</button><p>{step.why}</p></li>)}</ol></details>})}</section>;
+ const [warning,setWarning]=useState('');const open=(pathId:string,chapterId:string)=>{try{chooseLearningPath(localStorage,exam,pathId);setWarning('')}catch{setWarning('This browser could not save the selected path. Lessons remain available in the default order.')}onOpen(chapterId)};
+ return <section className="learning-paths"><h2>Suggested learning paths</h2><p>Choose an order that fits your goal. Prerequisites guide your study; every lesson remains open.</p>{warning&&<p role="status">{warning}</p>}{paths.map(path=>{const next=path.steps.find(s=>!read.includes(s.lessonId));return <details key={path.id}><summary>{path.title}<span>{path.steps.filter(s=>read.includes(s.lessonId)).length}/{path.steps.length} read</span></summary><p>{path.description}</p>{next&&<button onClick={()=>open(path.id,next.lessonId)}>Start next unread lesson</button>}<ol>{path.steps.map(step=><li key={step.lessonId}><button onClick={()=>open(path.id,step.lessonId)}>{chapters.find(c=>c.id===step.lessonId)?.title??step.lessonId}{read.includes(step.lessonId)?' · Read':''}</button><p>{step.why}</p></li>)}</ol></details>})}</section>;
 }
