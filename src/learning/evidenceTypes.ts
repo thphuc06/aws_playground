@@ -41,6 +41,7 @@ export interface FieldSurface {
   help: string;
   reference?: EvidenceSource;
   documentationReference?: EvidenceSource;
+  documentationScope?: string;
   /** Imported audit scope remains separate from reviewed ClaimEvidence. */
   existingAudit?: {checked: string; scope: string};
   apiBinding: {status: 'not-mapped' | 'declared-unreviewed'; operation?: string; path?: string};
@@ -56,6 +57,7 @@ export interface FieldSurface {
 export interface ServiceSurfaceManifest {
   serviceId: string;
   name: string;
+  category: string;
   catalogScope: 'C03-named-service' | 'legacy-compatibility';
   scope: string;
   surfaceStatus: 'editor-inventory-only';
@@ -64,7 +66,13 @@ export interface ServiceSurfaceManifest {
   rootFieldCount: number;
   limitations: string[];
   study: {structuredBrief: boolean; declaredReviewStatus?: string; sectionsMissing: string[]};
-  practice: {configurationCaseIds: string[]; knowledgeCheckIds: string[]};
+  practice: {
+    /** Original schema2 cases and legacy knowledge checks remain separate inventories. */
+    configurationCaseIds: string[]; knowledgeCheckIds: string[];
+    questionIds: string[];
+    standaloneExercises: {id:string;kind:'configuration'|'decision';scopeLabel:string}[];
+  };
+  labIds: string[];
 }
 export interface SkillEvidence {
   id: string;
@@ -77,5 +85,7 @@ export interface SkillEvidence {
   configurationCaseIds: string[];
   knowledgeCheckIds: string[];
   codeCaseIds: string[];
+  questionIds: string[];
+  primarySkillQuestionIds: string[];
   completeness: 'not-assessed';
 }

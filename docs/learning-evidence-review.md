@@ -8,6 +8,7 @@ remain historical records; this process does not retroactively certify them.
 ```text
 node scripts/audit-learning-surface.mjs
 node scripts/audit-learning-surface.mjs --check
+node scripts/audit-learning-surface.mjs --summary
 ```
 
 The generator reads the current catalog, configuration registry, service briefs,
@@ -16,6 +17,15 @@ and the readable `LEARNING-SURFACE-REPORT.md`. A deterministic digest covers the
 bundled application-source inputs and generator. Run it after integrating other
 lanes, not only before a merge. `--check` fails for stale or missing artifacts
 without changing files. No dependency install, AWS request or AI call is made.
+`--summary` validates and renders the report in memory and prints current counts
+without writing artifacts. It is useful while other lanes are still integrating;
+it does not claim that checked-in artifacts are current.
+
+The report separately inventories the versioned question bank, exact primary C03
+skill scenarios, standalone service exercises, editor configuration cases,
+historical C02-origin slices and isolated labs. These sets overlap in topic and
+sometimes source material; do not add them into a supposed mastery score. Labs
+currently declare service/chapter relevance rather than numbered skill coverage.
 
 The November 2 baseline contains 58 catalog services and 1,405 field paths,
 including table columns. New fields must be inventoried too; these numbers are
