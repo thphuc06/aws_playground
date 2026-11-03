@@ -7,6 +7,7 @@ export default function ConfigurationHelp({field}:{field:ConfigField}){
  {field.documentation?.omission&&<p>When omitted: {field.documentation.omission}</p>}
  {field.documentation?.effects?.map(effect=><p key={effect}>{effect}</p>)}
  {field.documentation?.examples?.map((example,index)=><div key={index}><b>{example.valid===false?'Counterexample':'Example'}</b><code>{JSON.stringify(example.value)}</code><p>{example.explanation}</p></div>)}
+ {field.documentationSource&&<p><a href={field.documentationSource.url} target="_blank" rel="noreferrer">Decision guide: {field.documentationSource.title} ↗</a> · checked {field.documentationSource.verified}</p>}
  {field.evidence&&<p>Evidence: {field.evidence.status.replaceAll('-',' ')}{field.evidence.operation?' | '+field.evidence.operation:''}{field.evidence.apiPath?' | '+field.evidence.apiPath:''}. {field.evidence.scope}</p>}
  {field.kind==='number'&&<p>{field.integer?'Whole numbers. ':'Numeric value. '}{field.allowedNumbers?'Allowed values: '+field.allowedNumbers.join(', '):field.min!==undefined||field.max!==undefined?'Declared range: '+(field.min??'not specified')+' to '+(field.max??'not specified'):''}{field.unit?' '+field.unit:''}.</p>}
  {field.when&&<p>Available when {field.when.field} is {field.when.values.map(String).join(' or ')}.</p>}

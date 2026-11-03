@@ -3,6 +3,7 @@ import {documentConfigurationFindings} from './configurationDocumentRules';
 import {policyFieldQuotaIssues,policyLimitData} from './policyQuotaChecks';
 import {semanticConfigurationFindings} from './configurationRules';
 import {applyAuditMetadata} from './configurationAuditMetadata';
+import {applyConfigurationNotes} from './configurationNotes';
 import {auditedConfigurationFindings} from './configurationAuditRules';
 import type {NetworkTopology} from './networkTopology';
 import {architectureProfilesData} from './architectureProfilesData';
@@ -13,7 +14,7 @@ import {configurationSecurityFields} from './configurationSecurityFields';
 import {parseConfigurationDocument} from './configurationDocuments';
 import {validatePolicyDocument} from './policyEngine';
 import type {ConfigField,ConfigurationDocument,JsonValue,ConfigurationFinding,SecurityLibrary} from './configurationTypes';
-export const configurationFields:Record<string,ConfigField[]>=applyAuditMetadata({...configurationCoreFields,...configurationPlatformFields,...configurationDeliveryFields,...configurationSecurityFields});
+export const configurationFields:Record<string,ConfigField[]>=applyConfigurationNotes(applyAuditMetadata({...configurationCoreFields,...configurationPlatformFields,...configurationDeliveryFields,...configurationSecurityFields}));
 
 export const isRecord=(v:unknown):v is Record<string,any>=>!!v&&typeof v==='object'&&!Array.isArray(v);
 export function isConfigurationDocument(v:unknown):v is ConfigurationDocument{return isRecord(v)&&v.schemaVersion===2&&isRecord(v.values)&&isRecord(v.legacyNotes)}

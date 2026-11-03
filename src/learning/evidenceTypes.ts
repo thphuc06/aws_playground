@@ -40,6 +40,7 @@ export interface FieldSurface {
   dispositionNote?: string;
   help: string;
   reference?: EvidenceSource;
+  documentationReference?: EvidenceSource;
   /** Imported audit scope remains separate from reviewed ClaimEvidence. */
   existingAudit?: {checked: string; scope: string};
   apiBinding: {status: 'not-mapped' | 'declared-unreviewed'; operation?: string; path?: string};

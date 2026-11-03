@@ -2,6 +2,7 @@ export type JsonValue=string|number|boolean|null|JsonValue[]|{[key:string]:JsonV
 export type ConfigSection='configuration'|'permissions'|'networking'|'reliability'|'monitoring'|'deployment';
 export interface ConfigSource {title:string;url:string;verified:string}
 export interface ConfigField {
+ documentationSource?:ConfigSource;
  /** Absence means unclassified; do not infer AWS configuration from a form control. */
  semantics?:'aws-setting'|'application-intent'|'exercise-input'|'observed-output';
  documentation?:{purpose?:string;whenToUse?:string;omission?:string;effects?:string[];examples?:{value:JsonValue;explanation:string;valid?:boolean}[];relatedLessons?:string[]};

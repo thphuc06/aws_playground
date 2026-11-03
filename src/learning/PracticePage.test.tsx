@@ -17,7 +17,7 @@ it('persists an explicit answer and resumes its pinned session after remount',as
  await screen.findByText('Practice progress is saved in this browser.');
  fireEvent.click(screen.getByRole('button',{name:'Start a new practice session'}));
  await screen.findByText('Practice saved in this browser.');
- const radios=screen.getAllByRole('radio');fireEvent.click(radios[0]);
+ const choices=[...screen.queryAllByRole('radio'),...screen.queryAllByRole('checkbox')];expect(choices.length).toBeGreaterThan(1);fireEvent.click(choices[0]);
  const inspector=await factory();expect((await inspector.read<LearningProgress>(LEARNING_RECORD_KEY))!.value.attempts).toHaveLength(0);
  fireEvent.click(screen.getByRole('button',{name:'Submit answer'}));
  await waitFor(async()=>expect((await inspector.read<LearningProgress>(LEARNING_RECORD_KEY))!.value.attempts).toHaveLength(1));
@@ -29,7 +29,7 @@ it('keeps temporary sessions visible after quota failure and never reports a suc
  const idb=new IDBFactory();const factory=async()=>{const repo=await openLocalRepository(idb,'page-quota');let writes=0;return {...repo,commit:async(...args:Parameters<typeof repo.commit>)=>{writes++;if(writes>1)throw new DOMException('Quota exceeded','QuotaExceededError');return repo.commit(...args);}}};
  const dirty:boolean[]=[];
  render(<PracticePage exam="DVA-C03" onOpenChapter={()=>{}} onDirtyChange={value=>dirty.push(value)} repositoryFactory={factory}/>);await screen.findByText('Practice progress is saved in this browser.');fireEvent.click(screen.getByRole('button',{name:'Start a new practice session'}));expect(dirty.at(-1)).toBe(true);
- await screen.findByText('Quota exceeded');expect(screen.getByRole('alert').textContent).toContain('not saved');expect(screen.getAllByRole('radio').length).toBeGreaterThan(1);expect(screen.queryByText('Practice saved in this browser.')).toBeNull();expect(screen.getByRole('button',{name:'Export current practice'})).toBeTruthy();expect(dirty.at(-1)).toBe(true);const unload=new Event('beforeunload',{cancelable:true});window.dispatchEvent(unload);expect(unload.defaultPrevented).toBe(true);const stored=await openLocalRepository(idb,'page-quota');expect((await stored.read<LearningProgress>(LEARNING_RECORD_KEY))!.value.sessions).toEqual([]);stored.close();
+ await screen.findByText('Quota exceeded');expect(screen.getByRole('alert').textContent).toContain('not saved');expect(screen.queryAllByRole('radio').length+screen.queryAllByRole('checkbox').length).toBeGreaterThan(1);expect(screen.queryByText('Practice saved in this browser.')).toBeNull();expect(screen.getByRole('button',{name:'Export current practice'})).toBeTruthy();expect(dirty.at(-1)).toBe(true);const unload=new Event('beforeunload',{cancelable:true});window.dispatchEvent(unload);expect(unload.defaultPrevented).toBe(true);const stored=await openLocalRepository(idb,'page-quota');expect((await stored.read<LearningProgress>(LEARNING_RECORD_KEY))!.value.sessions).toEqual([]);stored.close();
 });
 it('preserves corrupt legacy data for raw recovery instead of replacing it',async()=>{
  localStorage.setItem('aws-playground-progress','{corrupt');const idb=new IDBFactory(),factory=()=>openLocalRepository(idb,'page-corrupt');render(<PracticePage exam="DVA-C03" onOpenChapter={()=>{}} repositoryFactory={factory}/>);

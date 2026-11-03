@@ -43,6 +43,7 @@ export function describeFieldSurface(serviceId: string, path: string, field: Fie
     dispositionBasis: field.semantics ? 'declared-metadata' : editorialIntent ? 'editorial-classification' : 'not-classified',
     ...(editorialIntent && !field.semantics ? {dispositionNote: 'The current editor help describes an application/developer decision. No AWS API property or executed control is asserted.'} : {}),
     help: field.help,
+    ...(field.documentationSource ? {documentationReference:{title:field.documentationSource.title,url:field.documentationSource.url,declaredChecked:field.documentationSource.verified,relationship:'reference' as const}} : {}),
     ...(field.source ? {reference: {title: field.source.title, url: field.source.url, declaredChecked: field.source.verified, relationship: 'reference' as const}} : {}),
     ...(field.audit ? {existingAudit: {...field.audit}} : {}),
     apiBinding: field.evidence?.operation && field.evidence.apiPath ? {status: 'declared-unreviewed', operation: field.evidence.operation, path: field.evidence.apiPath} : {status: 'not-mapped'},

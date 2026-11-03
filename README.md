@@ -1,3 +1,36 @@
+# Connected learning workspace update
+
+The current source includes an independent 58-service reference library, 20
+bilingual worked cases, nine requirement-based comparisons, a 34-term EN/VI
+glossary and three guided learning paths. Opening a reference never changes the
+architecture. Reader links, bookmarks and history keep the selected exam/chapter.
+
+Practice now uses stable question/revision IDs and resumable browser-local
+sessions. The bank retains all 153 earlier items and adds 144 original scenarios:
+216 primary-skill questions cover the 72 C03 skills with three different contexts
+each. The total bank contains 297 items across its supported versions and formats.
+Multiple-response grading requires the exact answer set. Feedback exposure,
+independent mistakes and UTC review intervals are tracked separately from reading;
+practice statistics are not an AWS scaled score or an exam-readiness estimate.
+
+Workspace copies and learning progress use versioned IndexedDB transactions with
+legacy readers, optimistic revision checks, import previews and recovery exports.
+Backups preserve original/draft separation and policy text; AI reports and learning
+progress are selectable. A report-free draft stays editable. Invalid imports do
+not replace the active workspace. Imported historical reports are not fresh proof.
+
+Configuration supports field search, detail/changed filters, prerequisite links,
+keyboard tabs and nested problem navigation. Defaults fill only missing fields.
+UI/backend mutations share stable diagnostic identities and dependency context.
+The first authored decision-note groups cover 894 paths in 29 services; remaining
+groups are tracked in [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md). The full
+inventory remains 58 services / 925 root fields / 1,405 paths including columns.
+Documented guidance, bounded checks and real AWS validation remain separate.
+
+See [LEARNING-SURFACE-REPORT.md](LEARNING-SURFACE-REPORT.md) for generated evidence
+dimensions and [docs/release-verification-matrix.md](docs/release-verification-matrix.md)
+for release gates. Source and deployment status are verified independently.
+
 # Current DVA-C03 assistant update
 
 Wire editing: select a line, then drag either end onto a service body to reconnect.
