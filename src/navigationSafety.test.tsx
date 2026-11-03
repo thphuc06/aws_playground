@@ -10,7 +10,7 @@ beforeEach(()=>{localStorage.clear();history.replaceState({},'','/?view=builder&
 afterEach(()=>{cleanup();vi.unstubAllGlobals()});
 const saved=()=>JSON.parse(localStorage.getItem('aws-playground-workspace-v3')!).original;
 it('consumes example requests once so returning to Builder preserves later saved work',async()=>{
- render(<App/>);fireEvent.click(screen.getByRole('button',{name:/01 Serverless request/}));fireEvent.click(await screen.findByRole('button',{name:'Add Amazon EC2'}));await waitFor(()=>expect(saved().nodes.some((n:any)=>n.service==='ec2')).toBe(true));
+ render(<App/>);fireEvent.click(screen.getByRole('button',{name:/01 Serverless request/}));await screen.findByText('Editable example loaded. Add, move, connect or delete any component.');fireEvent.click(await screen.findByRole('button',{name:'Add Amazon EC2'}));await waitFor(()=>expect(saved().nodes.some((n:any)=>n.service==='ec2')).toBe(true));
  fireEvent.click(screen.getByRole('button',{name:'Service library'}));fireEvent.click(screen.getByRole('button',{name:'Architecture builder'}));await screen.findByRole('button',{name:'Add AWS Lambda'});await waitFor(()=>expect(saved().nodes.some((n:any)=>n.service==='ec2')).toBe(true));expect(window.confirm).not.toHaveBeenCalled();
 },15000);
 it('protects dirty configuration from sidebar and search navigation until the user explicitly discards it',async()=>{
