@@ -1,18 +1,19 @@
 import ConfigurationHelp from './ConfigurationHelp';
 import {policyLimitData,policyLimitNotes} from './policyQuotaChecks';
-import {lazy,Suspense} from 'react';
+import {lazy,Suspense,useId} from 'react';
 import type {ConfigField,JsonValue,SecurityLibrary} from './configurationTypes';
 import type {ConfigurationGraph} from './configurationRegistry';
 import {checkField,fieldApplicable} from './configurationRegistry';
 import {PolicyDocumentField} from './PolicyEditor';
 const DocumentEditor=lazy(()=>import('./ConfigurationDocumentEditor'));
 export default function ConfigurationField({field,value,values,onChange,graph,library,service,path='',onJumpField}:{field:ConfigField;value:JsonValue|undefined;values:Record<string,JsonValue>;onChange:(next:JsonValue|undefined)=>void;graph?:ConfigurationGraph;library?:SecurityLibrary;service?:string;path?:string;onJumpField?:(key:string)=>void}){
+ const instanceId=useId();
  const protocol=String(values.protocol??'').toLowerCase();
  const protocolField=['fromPort','toPort'].includes(field.key)&&path.includes('securityRules-')||field.key==='ports'&&/inbound-|outbound-/.test(path);
  const allProtocols=protocolField&&protocol==='all';
  if(protocolField&&['icmp','icmpv6'].includes(protocol))field={...field,label:field.key==='ports'?'ICMP type/code':field.key==='fromPort'?'ICMP type':'ICMP code',unit:undefined,min:-1,max:255,help:'Use the ICMP type/code; -1 means all. These are not TCP/UDP port numbers.'};
  if(protocolField&&field.key==='ports'&&['tcp','udp'].includes(protocol))field={...field,label:'Port range',help:'Use one port or a start-end port range for the selected transport protocol.'};
- const id='configuration-'+path+field.key,applicable=fieldApplicable(field,values),errors=value===undefined?[]:checkField(field,value);
+ const id=instanceId+'-configuration-'+path+field.key,applicable=fieldApplicable(field,values),errors=value===undefined?[]:checkField(field,value);
  const rows=Array.isArray(value)?value as Record<string,JsonValue>[]:[];
  const setRow=(index:number,key:string,next:JsonValue|undefined)=>{const clone=structuredClone(rows);if(next===undefined)delete clone[index][key];else clone[index][key]=next;onChange(clone)};
  const source=field.source;

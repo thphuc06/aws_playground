@@ -1,3 +1,4 @@
+import {useEditorRecovery} from './editorRecovery';
 import {assessConfigurationMutation} from './configurationRepair';
 import {useEffect,useState} from 'react';
 import type {Graph} from './architectureReview';
@@ -18,6 +19,7 @@ export function frameFields(frame:NetworkFrame):ConfigField[]{
 }
 export default function NetworkFrameEditor({frame,graph,onSave,onDirtyChange}:{frame:NetworkFrame;graph:Graph;onSave:(network:NetworkTopology)=>boolean;onDirtyChange:(dirty:boolean)=>void}){
  const [draft,setDraft]=useState(frame),dirty=JSON.stringify(frame)!==JSON.stringify(draft);
+ useEditorRecovery(dirty,draft,{resourceId:frame.id,fieldPath:'network.frames'});
  useEffect(()=>{onDirtyChange(dirty);return()=>onDirtyChange(false)},[dirty,onDirtyChange]);
  const network={...graph.network!,frames:graph.network!.frames.map(f=>f.id===frame.id?draft:f)},findings=networkFindings(network,graph.nodes),errors=assessConfigurationMutation(graph,{...graph,network},[frame.id]).blocking;
  return <div className="configuration-inspector">{frameFields(frame).map(field=><ConfigurationField key={field.key} field={field} value={draft[field.key as keyof NetworkFrame] as JsonValue|undefined} values={draft as unknown as Record<string,JsonValue>} onChange={value=>setDraft(d=>{const next={...d};if(value===undefined)delete (next as any)[field.key];else (next as any)[field.key]=value;return next})}/>)}

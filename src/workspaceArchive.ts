@@ -4,7 +4,7 @@ import type {RepositoryMutation} from './workspaceDatabase';
 
 export const ARCHIVE_FORMAT='aws-developer-playground-workspace';
 export const ARCHIVE_MAX_BYTES=32*1024*1024;
-export interface EditorRecoveryEntry {scope:'original'|'draft'|'checkpoint';nodeId?:string;fieldPath:string;format:'json'|'yaml'|'text';raw:string}
+export interface EditorRecoveryEntry {scope:'original'|'draft'|'checkpoint';nodeId?:string;resourceId?:string;workspaceId?:string;baseRevision?:number;graphSchema?:1|2;configurationSchema?:2;baseSignature?:string;fieldPath:string;format:'json'|'yaml'|'text';raw:string}
 export interface EditorRecoveryFacet {version:1;entries:EditorRecoveryEntry[]}
 export interface WorkspaceArchive {
  format:typeof ARCHIVE_FORMAT;archiveVersion:1;exportedAt:string;
@@ -34,7 +34,7 @@ function safeArchive(value:unknown,depth=0):void {
 }
 export function validateEditorRecovery(value:unknown):asserts value is EditorRecoveryFacet {
  if(!record(value)||value.version!==1||!Array.isArray(value.entries)||value.entries.length>100||Object.keys(value).some(k=>!['version','entries'].includes(k)))throw new Error('Invalid editor recovery facet.');
- for(const e of value.entries){if(!record(e)||!['original','draft','checkpoint'].includes(String(e.scope))||!['json','yaml','text'].includes(String(e.format))||typeof e.raw!=='string'||e.raw.length>262144||typeof e.fieldPath!=='string'||e.fieldPath.length>512||e.nodeId!==undefined&&(typeof e.nodeId!=='string'||e.nodeId.length>128)||Object.keys(e).some(k=>!['scope','nodeId','fieldPath','format','raw'].includes(k)))throw new Error('Invalid editor recovery entry.');}
+ for(const e of value.entries){if(!record(e)||!['original','draft','checkpoint'].includes(String(e.scope))||!['json','yaml','text'].includes(String(e.format))||typeof e.raw!=='string'||e.raw.length>ARCHIVE_MAX_BYTES||typeof e.fieldPath!=='string'||e.fieldPath.length>512||e.nodeId!==undefined&&(typeof e.nodeId!=='string'||e.nodeId.length>128)||Object.keys(e).some(k=>!['scope','nodeId','resourceId','workspaceId','baseRevision','graphSchema','configurationSchema','baseSignature','fieldPath','format','raw'].includes(k)))throw new Error('Invalid editor recovery entry.');for(const key of ['resourceId','workspaceId','baseSignature'])if(e[key]!==undefined&&(typeof e[key]!=='string'||(e[key] as string).length>512))throw new Error('Invalid editor recovery binding.');if(e.baseRevision!==undefined&&(!Number.isSafeInteger(e.baseRevision)||Number(e.baseRevision)<0)||e.graphSchema!==undefined&&![1,2].includes(e.graphSchema as number)||e.configurationSchema!==undefined&&e.configurationSchema!==2)throw new Error('Invalid editor recovery schema or revision.');}
 }
 function portableWorkspace(input:ArchitectureWorkspace,reportsIncluded:boolean):ArchitectureWorkspace {
  const w=parseWorkspaceValue(input);
