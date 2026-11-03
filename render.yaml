@@ -20,6 +20,11 @@ services:
         sync: false
       - key: REVIEW_ALLOWED_ORIGINS
         value: https://aws-developer-playground-phuc.pointykayak.chatgpt.site
+      - key: REVIEW_RENDER_FRONTEND_ORIGIN
+        fromService:
+          type: web
+          name: aws-playground-frontend
+          envVarKey: RENDER_EXTERNAL_URL
       - key: REVIEW_MODEL
         value: gpt-6.1-terra
       - key: REVIEW_REASONING_EFFORT
@@ -34,3 +39,14 @@ services:
         value: '12288'
       - key: REVIEW_TIMEOUT_SECONDS
         value: '1200'
+  - type: web
+    name: aws-playground-frontend
+    runtime: static
+    repo: https://github.com/thphuc06/aws_playground
+    branch: main
+    buildCommand: npm ci --include=dev && npm run build
+    staticPublishPath: ./dist
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: '22'

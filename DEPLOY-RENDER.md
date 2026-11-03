@@ -7,8 +7,42 @@ Configuration schema2 requires the latest backend commit: status must advertise
 asks for a backend deployment if those capabilities are missing. No environment
 change is needed for this upgrade. See CONFIGURATION-VERIFICATION.md.
 
-Repository: https://github.com/thphuc06/aws_playground (`main`). Frontend remains
-https://aws-developer-playground-phuc.pointykayak.chatgpt.site.
+Repository: https://github.com/thphuc06/aws_playground (`main`). The Blueprint
+defines the existing `aws-playground-review` backend and an
+`aws-playground-frontend` Static Site alongside the existing GPT Sites frontend.
+
+## Enable the Render frontend
+
+In [Render Blueprints](https://dashboard.render.com/blueprints), sync the
+existing Blueprint from `main` once CI passes. If the repository has no linked
+Blueprint yet, create one from `render.yaml` in the workspace that owns
+`aws-playground-review`. Confirm the plan updates the existing backend rather
+than creating another one. The frontend builds with
+`npm ci --include=dev && npm run build` and publishes `dist`.
+
+Open the Static Site URL shown by Render. The Blueprint passes the assigned URL
+to the backend as `REVIEW_RENDER_FRONTEND_ORIGIN`. Both this origin and the GPT
+Sites origin are allowed. The browser uses the existing review backend URL.
+Keep the OpenAI key on the backend service only.
+
+For a Static Site created manually, use the same build command and `dist`
+publish directory, then set `REVIEW_RENDER_FRONTEND_ORIGIN` on the backend to
+the actual HTTPS frontend origin without a trailing slash. For any additional
+custom domains, add their exact origins to the comma-separated
+`REVIEW_ALLOWED_ORIGINS` list.
+
+Once both deploys are live, open `/?view=learn&exam=DVA-C03&mission=serverless&chapter=dev-application`
+on the new domain. In Architecture Builder, the AI connection status should be
+available without submitting a review. A read-only check is:
+
+```sh
+curl -i -H 'Origin: https://YOUR-FRONTEND.onrender.com' https://aws-playground-review.onrender.com/api/review/status
+```
+
+Expect HTTP 200, `enabled: true`, and `Access-Control-Allow-Origin` equal to
+the frontend origin. Workspaces saved in the browser are scoped to each domain.
+Use Workspace backup & recovery to export from GPT Sites and import on Render
+if you want to move a saved diagram.
 
 ## Runtime and environment
 
