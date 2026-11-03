@@ -6,7 +6,7 @@ import {validateTopology,cleanTopology,type NetworkTopology} from './networkTopo
 import type {SecurityLibrary} from './configurationTypes';
 import {validateSecurityLibrary} from './securityLibrary';
 /** Untrusted proposals become explicit, local, atomic edits. Never an AWS validator. */
-import {BuilderNode,BuilderEdge,EdgeConfig,Finding,defaultEdgeConfig,validateGraph} from './builderRules';
+import {BuilderNode,BuilderEdge,EdgeConfig,Finding,defaultEdgeConfig,isServiceIconSize,validateGraph} from './builderRules';
 import {canvasCatalog as serviceCatalog} from './serviceCatalog';
 import {type ArchitectureData,validateArchitectureSettings,relationshipKinds} from './architectureRegistry';
 import {EventBridgeConfig,isEventBridgeConfig,evaluateEventBridge,defaultEventBridgeConfig} from './eventBridge';
@@ -30,7 +30,14 @@ const clone=<T,>(v:T):T=>JSON.parse(JSON.stringify(v));
 function canonical(v:any):string {if(Array.isArray(v))return '['+v.map(canonical).join(',')+']';if(object(v))return '{'+Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';return JSON.stringify(v)}
 /** Exact canonical snapshot, deliberately collision-free (not a security hash). */
 export function fingerprintGraph(graph:Graph):string {safe(graph);return (graph.version===2?'graph-v2:':'graph-v1:')+canonical(graph)}
-function node(n:unknown):void{keys(n,['id','service','label','position']);if(!id(n.id)||!serviceCatalog.some(s=>s.id===n.service)||typeof n.label!=='string'||n.label.length>120)fail('Invalid service node.');keys(n.position,['x','y']);if(![n.position.x,n.position.y].every(x=>typeof x==='number'&&Number.isFinite(x)&&Math.abs(x)<=100000))fail('Invalid node position.')}
+function node(n: unknown): void {
+ const required = ['id','service','label','position'];
+ keys(n,[...required,'iconSize'],required);
+ if(!id(n.id)||!serviceCatalog.some(s=>s.id===n.service)||typeof n.label!=='string'||n.label.length>120)fail('Invalid service node.');
+ if(n.iconSize!==undefined&&!isServiceIconSize(n.iconSize))fail('Invalid service icon size.');
+ keys(n.position,['x','y']);
+ if(![n.position.x,n.position.y].every(x=>typeof x==='number'&&Number.isFinite(x)&&Math.abs(x)<=100000))fail('Invalid node position.');
+}
 function edge(e:unknown):void{keys(e,['id','source','target','label'],['id','source','target']);if(!id(e.id)||!id(e.source)||!id(e.target)||e.label!==undefined&&(typeof e.label!=='string'||e.label.length>60))fail('Invalid connection.');}
 function config(g:Graph,target:string,key:string,v:unknown,enforceBounds=true):void {
  const n=g.nodes.find(n=>n.id===key),e=g.edges.find(e=>e.id===key);

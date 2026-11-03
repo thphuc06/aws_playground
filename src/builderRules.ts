@@ -1,7 +1,13 @@
 /** Bounded, browser-only teaching model. Never an AWS deployment validator. */
 import {canvasCatalog as serviceCatalog} from './serviceCatalog';
 export type ServiceType = string;
-export interface BuilderNode { id: string; service: ServiceType; label: string }
+export const serviceIconSizes = [32, 48, 64, 80] as const;
+export type ServiceIconSize = typeof serviceIconSizes[number];
+export const defaultServiceIconSize: ServiceIconSize = 48;
+export function isServiceIconSize(value: unknown): value is ServiceIconSize {
+ return serviceIconSizes.some(size => size === value);
+}
+export interface BuilderNode { id: string; service: ServiceType; label: string; iconSize?: ServiceIconSize }
 export interface BuilderEdge { id: string; source: string; target: string; label?: string }
 export interface EdgeConfig { integration: boolean; permission: boolean; eventSource: boolean; visibility: number; functionTimeout: number; partialBatch: boolean }
 export interface Finding { severity: 'error' | 'warning' | 'info'; edgeId?: string; nodeId?: string; title: string; detail: string; sourceUrl: string }

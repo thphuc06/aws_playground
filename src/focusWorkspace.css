@@ -131,6 +131,8 @@
 .builder-page .connection-tools button{display:inline-flex;align-items:center;gap:5px;min-height:32px;padding:6px 9px;font-size:12px;margin:0}
 .connection-tools button[aria-pressed=true]{background:var(--info-soft);border-color:var(--info-line);color:var(--info-text)}
 .connection-tools .connection-delete{color:var(--danger-text)}
+.builder-page .service-icon-tools label{flex:none}
+.builder-page .service-icon-tools select{min-height:32px;padding:4px 8px;flex:none}
 .architecture-studio .builder-page.is-focused .builder-stage{display:flex;flex-direction:column}
 .architecture-studio .builder-page.is-focused .builder-canvas-toolbar{position:relative;left:auto;top:auto;flex:0 0 auto;width:100%;max-width:100%;box-sizing:border-box;padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--border)}
 .architecture-studio .builder-page.is-focused .builder-stage>.builder-canvas{position:relative;inset:auto;flex:1 1 0;height:0!important;min-height:0}

@@ -28,3 +28,29 @@ it('preserves a frame drag when saving an already-open Lambda configuration draf
  act(()=>flow.current.onNodesChange([{id:'frame',type:'position',position:{x:150,y:75}}]));expect(latest!.network!.frames[0]).toMatchObject({x:150,y:75});
  fireEvent.click(screen.getByRole('button',{name:'Save configuration'}));expect(latest!.network!.frames[0]).toMatchObject({x:150,y:75});expect((latest!.architecture!.nodes.fn.values as any).timeoutSeconds).toBe(12);
 });
+it('changes only the selected service icon and restores the default size',()=>{
+ const changed=vi.fn();
+ function Harness(){
+  const [graph,setGraph]=useState<Graph>({
+   version:1,
+   nodes:[
+    {id:'fn',service:'lambda',label:'Worker',position:{x:0,y:0}},
+    {id:'queue',service:'sqs',label:'Jobs',position:{x:400,y:0}},
+   ],
+   edges:[{id:'call',source:'fn',target:'queue'}],
+   configs:{},
+  });
+  return <Builder value={graph} onChange={next=>{setGraph(next);changed(next)}}/>;
+ }
+ render(<Harness/>);
+ fireEvent.click(screen.getByRole('button',{name:'fn'}));
+ const size=screen.getByLabelText('Icon size') as HTMLSelectElement;
+ expect(size.value).toBe('48');
+ fireEvent.change(size,{target:{value:'80'}});
+ expect(size.value).toBe('80');
+ expect(changed.mock.lastCall?.[0].nodes.map((node: Graph['nodes'][number])=>node.iconSize)).toEqual([80,undefined]);
+ expect(changed.mock.lastCall?.[0].edges).toEqual([{id:'call',source:'fn',target:'queue'}]);
+ fireEvent.change(size,{target:{value:'48'}});
+ expect(size.value).toBe('48');
+ expect(changed.mock.lastCall?.[0].nodes[0].iconSize).toBeUndefined();
+});
