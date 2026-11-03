@@ -1,5 +1,6 @@
 import {LearningPaths} from './LearningReferenceTools';
 import ContextHelp from './ContextHelp';
+export {default as ExamSelector} from './ExamSelector';
 import PdfReadingGuide from './PdfReadingGuide';
 import {useState} from 'react';
 import type {Chapter} from './content';
@@ -8,7 +9,6 @@ import {researchResources} from './theoryResearch';
 import './theory.css';
 export type ExamVersion='DVA-C02'|'DVA-C03';
 export const chapterSupports=(c:Chapter,v:ExamVersion)=>(c.examVersions??['DVA-C02']).includes(v);
-export function ExamSelector({value,onChange}:{value:ExamVersion;onChange:(v:ExamVersion)=>void}){const exam=examVersions.find(e=>e.id===value)!;return <section className="exam-selector"><label>Exam version<select aria-label="Exam version" value={value} onChange={e=>onChange(e.target.value as ExamVersion)}><option>DVA-C02</option><option>DVA-C03</option></select></label><div><b>{exam.label}</b><ContextHelp label="Exam dates & guide"><p>{exam.availability}</p><a href={exam.guideUrl} target="_blank" rel="noreferrer">Official guide ↗</a><small>Snapshot checked {exam.verified}. Verify booking dates with AWS.</small></ContextHelp></div></section>}
 export default function TheoryIndex({chapters,selected,read,exam,onOpen,bookmarks=[],bookmarksOnly=false,continueAt}:{chapters:Chapter[];selected:string;read:string[];exam:ExamVersion;onOpen:(id:string,section?:string)=>void;bookmarks?:string[];bookmarksOnly?:boolean;continueAt?:{chapter:string;section?:string}}){
  const [query,setQuery]=useState(''),[domain,setDomain]=useState('all');
  const filtered=chapters.filter(c=>chapterSupports(c,exam)&&(!bookmarksOnly||bookmarks.includes(c.id))&&(domain==='all'||c.domain===domain)&&`${c.title} ${c.summary} ${c.objectives.join(' ')} ${c.sections.map(s=>s.title+' '+s.body.join(' ')).join(' ')}`.toLowerCase().includes(query.toLowerCase()));

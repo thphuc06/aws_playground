@@ -1,9 +1,9 @@
-import {chapters} from './content';
+import {chapterNavigation as chapters} from './chapterNavigation';
 import {canvasCatalog} from './serviceCatalog';
 import type {ExamVersionId} from './examVersions';
 export type AppView='home'|'learn'|'services'|'bookmarks'|'practice'|'coverage'|'builder';
 export interface AppRoute {view:AppView;exam:ExamVersionId;mission:'serverless'|'queue'|'deployment';chapter?:string;service?:string;section?:string}
-export const supportsExam=(chapter:typeof chapters[number],exam:ExamVersionId)=>(chapter.examVersions??['DVA-C02']).includes(exam);
+export const supportsExam=(chapter:{examVersions?:readonly ExamVersionId[]},exam:ExamVersionId)=>(chapter.examVersions??['DVA-C02']).includes(exam);
 /** Keep old chapter links, but never render one chapter while advertising another. */
 export function parseAppRoute(url:URL):AppRoute {
  const p=url.searchParams,raw=p.get('chapter');

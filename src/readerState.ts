@@ -1,4 +1,4 @@
-import {chapters} from './content';
+import {chapterNavigation as chapters} from './chapterNavigation';
 import {supportsExam} from './appRoutes';
 import type {ExamVersionId} from './examVersions';
 export const readerStorageKey='aws-playground-reader-v1';

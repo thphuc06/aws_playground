@@ -1,7 +1,7 @@
 import {useState,useEffect} from 'react';
 import {ArrowRight,BookOpen,GitBranch,Shield,Target,Layers} from 'lucide-react';
 import {examVersions,examComparisonUrl,type ExamVersionId} from './examVersions';
-import {ExamSelector} from './TheoryIndex';
+import ExamSelector from './ExamSelector';
 import {homeServices,homeTasks,homeScoring,homeVerified,examOverviewUrl} from './homeData';
 import './home.css';
 export default function Home({exam,onExam,onLearn,onBuilder,onChapter}:{exam:ExamVersionId;onExam:(v:ExamVersionId)=>void;onLearn:()=>void;onBuilder:()=>void;onChapter:(id:string)=>void}){
