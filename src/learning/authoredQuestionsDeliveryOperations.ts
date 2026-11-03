@@ -96,12 +96,12 @@ export const authoredDeliveryOperationsQuestions:StudyQuestion[]=[
    ['Remove IAM resources from the snapshot to eliminate noise.','Hiding the policy removes evidence rather than enforcing the requirement.'],
   ],1,'Expected: read only the Orders table\nObserved policy: {"Action":"dynamodb:GetItem","Resource":"*"}'),
  q('3.2.2','a','layered-testing',['api','lambda'],['mockApi'],
-  'A frontend contract test uses an API Gateway REST MOCK integration that returns a synthetic 503. Which conclusion is supported?',[
+  'A frontend contract test uses an API Gateway REST MOCK integration returning a synthetic 503. Its assertions for a retryable-error message and no automatic retry both pass. Which conclusion is supported?',[
    ['The production database has been proven unavailable.','The mock response was produced without calling that backend.'],
    ['The Lambda execution role has passed its permission checks.','No Lambda backend authorization was exercised by this mock.'],
    ['The client handled the configured 503 response; backend resilience still needs separate evidence.','The mock isolates client behavior for the selected response contract.'],
    ['Every real backend 503 has exactly the same headers and body.','The fixture must be checked against the real integration contract; a mock does not guarantee equivalence.'],
-  ],2),
+  ],2,'Mock response: HTTP 503, {"code":"TEMPORARY"}\nObserved assertions: retryable-error message visible = PASSED; automatic retry count = 0, PASSED'),
  q('3.2.2','b','layered-testing',['lambda','codebuild'],['testing'],
   'A unit test injects a client that throws a throttling error twice and then succeeds. Which two assertions examine the application retry logic rather than making unsupported cloud claims?',[
    ['Assert the bounded number of client attempts and the final returned result.','These are observable behaviors of the application under the injected failure sequence.'],
@@ -219,7 +219,7 @@ export const authoredDeliveryOperationsQuestions:StudyQuestion[]=[
    ['Configure the consumer input artifact to match the producer output artifact name.','Ordering alone does not identify which artifact crosses the action boundary.'],
    ['Point both actions at an unrelated SourceOutput and assume it contains the compiled files.','The source artifact is not automatically the build output.'],
    ['Insert an arbitrary sleep and leave the artifact contract unspecified.','Timing guesses do not establish a valid pipeline dependency.'],
-  ],[1,2],'Build: runOrder=1, output=BuildOutput\nPackageCheck: runOrder=1, input=BuildOutput'),
+  ],[1,2],'Build: runOrder=1, output=BuildOutput\nPackageCheck: runOrder=1, input=SourceOutput'),
  q('3.3.5','b','build-pipelines',['codepipeline','sns','iam'],['approvals'],
   'A reviewer receives the manual-approval email but is denied when submitting approval. What should be checked?',[
    ['Whether receiving an SNS notification automatically grants approval permission.','Notification delivery and IAM authorization are separate.'],
@@ -257,20 +257,20 @@ export const authoredDeliveryOperationsQuestions:StudyQuestion[]=[
    ['Use a deployment strategy with observation time and verify the application after rollback.','A controlled rollout and post-rollback evidence address runtime behavior beyond static validation.'],
    ['Repeat the same rollout without monitoring because its JSON validation passed.','The validator result does not explain or prevent the observed runtime errors.'],
   ],[1,3]),
- q('3.3.8','a','build-pipelines',['codepipeline'],['retryStage'],
-  'An operator intends to retry a failed deploy stage from execution E-17. New commits have arrived meanwhile. Which API inputs identify the execution and stage being retried?',[
-   ['pipelineName, stageName and pipelineExecutionId, with the appropriate retryMode.','RetryStageExecution identifies the particular execution and stage rather than selecting a revision merely by branch name.'],
-   ['Only the repository branch name.','A moving branch does not identify the failed pipeline execution.'],
-   ['Only the pipeline definition version number.','The pipeline configuration version is not the identity of the execution being retried.'],
-   ['Start a new execution and assume it is the retry of E-17.','A new execution is not the requested retry of the identified failed execution.'],
-  ],0,'Desired operation: retry Deploy for execution E-17\nNot desired: start an unrelated new pipeline execution'),
- q('3.3.8','b','release-artifacts',['ecr','ecs'],['imageDigest'],
-  'Staging tested digest sha256:A. Before production pulls the mutable release tag, it is repointed to sha256:B. Which release evidence prevents this substitution from going unnoticed?',[
-   ['A successful docker login alone.','Authentication does not prove which image content was deployed.'],
-   ['Record the same mutable tag in both environment manifests without its digest.','The tag can resolve to different content at the two pull times.'],
-   ['Only the image repository name.','A repository contains multiple images and is not an immutable artifact identity.'],
-   ['Pin and verify the approved digest in the deployment inputs and record the actual running image identity.','The digest identifies content and allows comparison of the tested and promoted artifact.'],
-  ],3),
+ q('3.3.8','a','build-pipelines',['codepipeline'],['sourceControlSkill','gitTag','gitBranch'],
+  'The source repository used by a release pipeline has an approved tested commit a1b2c3d. main has advanced to unapproved commit d4e5f6a. How should the team label the approved v2.4.0 source release?',[
+   ['Create the annotated v2.4.0 tag at a1b2c3d and verify the resolved commit before publishing the release reference.','The release label must identify the tested commit explicitly. Tags are still references whose later movement must be controlled and reviewed.'],
+   ['Create v2.4.0 at the current main tip because the tests ran on main earlier.','The branch moved after testing; its current tip does not identify the approved source state.'],
+   ['Rename the pipeline v2.4.0 while leaving its source reference unspecified.','A pipeline display name is not a source-control reference to the tested commit.'],
+   ['Force-move the previous production tag to the new main tip and reuse its test report.','That changes an existing release identity and associates evidence with different source content.'],
+  ],0,'Approved commit: a1b2c3d\nCurrent main tip: d4e5f6a\nIntended new release label: v2.4.0'),
+ q('3.3.8','b','build-pipelines',['codepipeline'],['sourceControlSkill','gitBranch','gitCherryPick','gitTag'],
+  'Production follows release/2.x. main contains a reviewed fix F plus unapproved features that must not ship in the patch release. Which source-control workflow fits that constraint?',[
+   ['Merge all of main into release/2.x without reviewing the additional feature commits.','That includes work the patch release explicitly excludes.'],
+   ['Move the existing production tag to main and keep the old release notes.','Retagging changes the release reference without preserving the approved patch scope.'],
+   ['Change only the release branch name and assume fix F is now present in its history.','Renaming a branch does not apply the fix commit.'],
+   ['Review the dependencies of F, apply the intended fix to release/2.x, resolve and test the result, then tag the new patched commit.','A selected change can be applied without importing every main-branch feature; the resulting release branch still needs conflict, dependency and regression review.'],
+  ],3,'release/2.x: production-compatible maintenance line\nmain: reviewed fix F + unapproved feature commits\nGoal: a new patch release that retains the approved release scope'),
  q('3.3.9','a','release-artifacts',['kiro','cloudformation'],['changeSets','kiroPractices'],
   'An AI-generated infrastructure edit claims to be a harmless rename, but its change set replaces a stateful resource. What should the developer do?',[
    ['Approve based on the generated summary because the template parses.','A summary and syntax check do not resolve the replacement impact.'],

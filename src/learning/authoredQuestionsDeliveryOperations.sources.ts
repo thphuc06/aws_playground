@@ -1,5 +1,9 @@
 /** Author source review, 2026-11-03. The scenarios are original synthetic exercises. */
 export const deliveryOperationsSources={
+ sourceControlSkill:['https://docs.aws.amazon.com/aws-certification/latest/developer-associate-03/developer-associate-03-domain3.html','Skill3.3.8 concerns source-control labels and branches for application versions/releases.'],
+ gitTag:['https://git-scm.com/docs/git-tag','Annotated release tags identify chosen commits; retagging is an explicit history/reference change.'],
+ gitBranch:['https://git-scm.com/docs/git-branch','Branches are named development lines whose commit tips can move.'],
+ gitCherryPick:['https://git-scm.com/docs/git-cherry-pick','A selected commit can be applied to another branch; conflicts and resulting behavior still need review.'],
  pythonPackage:['https://docs.aws.amazon.com/lambda/latest/dg/python-package.html','ZIP layout and Linux/architecture-compatible dependencies.'],
  buildspec:['https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html','Build phases, artifact paths and protected environment-value references.'],
  immutableTags:['https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-tag-mutability.html','Standard IMMUTABLE repository behavior when reusing a tag.'],

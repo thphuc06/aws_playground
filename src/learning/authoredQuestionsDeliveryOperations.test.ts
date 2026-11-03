@@ -22,7 +22,7 @@ describe('authored delivery and operations question inventory',()=>{
    for(const id of question.correctOptionIds)expect(question.options.some(o=>o.id===id),question.id).toBe(true);
    for(const id of question.chapterIds)expect(chapters.some(c=>c.id===id&&c.examVersions?.includes('DVA-C03')),question.id+'/'+id).toBe(true);
    for(const id of question.serviceIds)expect(canvasCatalog.some(s=>s.id===id),question.id+'/'+id).toBe(true);
-   expect(question.sourceUrls.length).toBeGreaterThan(0);for(const url of question.sourceUrls){expect(reviewedUrls.has(url),question.id+'/'+url).toBe(true);expect(['docs.aws.amazon.com','kiro.dev']).toContain(new URL(url).hostname);}
+   expect(question.sourceUrls.length).toBeGreaterThan(0);for(const url of question.sourceUrls){expect(reviewedUrls.has(url),question.id+'/'+url).toBe(true);expect(['docs.aws.amazon.com','kiro.dev','git-scm.com']).toContain(new URL(url).hostname);}
   }
   expect(deliveryOperationsSourceReview.checked).toBe('2026-11-03');expect(deliveryOperationsSourceReview.status).toContain('independent editorial review');
  });
@@ -32,6 +32,19 @@ describe('authored delivery and operations question inventory',()=>{
 });
 
 describe('discriminating scenario fixture checks',()=>{
+ it('provides two actual pipeline defects when the answer requires two corrections',()=>{
+  const [producer,consumer]=item('3.3.5','a').snippet!.split('\n');
+  const producerOrder=Number(producer.match(/runOrder=(\d+)/)![1]),consumerOrder=Number(consumer.match(/runOrder=(\d+)/)![1]);
+  const output=producer.match(/output=(\w+)/)![1],input=consumer.match(/input=(\w+)/)![1];
+  expect(consumerOrder).toBe(producerOrder);expect(input).not.toBe(output);expect(item('3.3.5','a').correctOptionIds).toHaveLength(2);
+ });
+ it('states passing client assertions before drawing a client-handling conclusion from the mock',()=>{
+  expect(item('3.2.2','a').prompt).toContain('both pass');expect(item('3.2.2','a').snippet).toContain('message visible = PASSED');expect(selectedText('3.2.2','a')).toContain('backend resilience still needs separate evidence');
+ });
+ it('maps source-control release labeling and maintenance branching to skill3.3.8',()=>{
+  const label=item('3.3.8','a'),maintenance=item('3.3.8','b');expect(label.sourceUrls).toContain('https://git-scm.com/docs/git-tag');expect(maintenance.sourceUrls).toContain('https://git-scm.com/docs/git-cherry-pick');
+  expect(label.snippet).toContain('Approved commit: a1b2c3d');expect(label.snippet).toContain('Current main tip: d4e5f6a');expect(selectedText('3.3.8','a')).toContain('tag at a1b2c3d');expect(selectedText('3.3.8','b')).toContain('release/2.x');expect(selectedText('3.3.8','b')).toContain('resolve and test');
+ });
  it('makes the incomplete HTTPv2 event fail at its absent metadata, not at body parsing',()=>{
   const raw=item('3.2.3','a').snippet!.split('// Incomplete fixture:\n')[1],fixture=JSON.parse(raw);
   expect(fixture.version).toBe('2.0');expect(JSON.parse(fixture.body)).toEqual({title:'demo'});
