@@ -117,3 +117,6 @@
 .architecture-studio .edge-endpoint-grip{position:absolute;left:0;top:0;margin:0!important;transform-origin:0 0;z-index:35;pointer-events:all;width:26px;height:26px;min-height:26px;padding:0!important;border:1px solid transparent!important;border-radius:50%!important;background:transparent!important;color:transparent;cursor:grab;touch-action:none;font-size:18px!important}
 .architecture-studio .edge-endpoint-grip:hover,.architecture-studio .edge-endpoint-grip:focus-visible,.architecture-studio .edge-endpoint-grip[data-dragging=true]{background:var(--surface)!important;border-color:var(--accent-line)!important;color:var(--accent-text)}
 .architecture-studio .edge-endpoint-grip[data-dragging=true]{cursor:grabbing}
+
+.architecture-studio .edge-bend-handle[data-snapped=true]{box-shadow:0 0 0 3px var(--info-soft),0 0 0 4px var(--info-text)}
+.wire-alignment-guide{pointer-events:none}
