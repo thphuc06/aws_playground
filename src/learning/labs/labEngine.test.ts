@@ -48,4 +48,31 @@ describe('twelve isolated invariant labs',()=>{
   const lab=getLabDefinition('sqs-batch')!,original=JSON.stringify(lab),a=createLabSession(lab,'session-a'),b=createLabSession(lab,'session-b');a.values.idempotency='transaction-ledger';a.values={...a.values,...repairs[lab.id]};const run=runLabAttempt(a);expect(run.attempts).toHaveLength(1);expect(a.attempts).toHaveLength(0);expect(run.attempts[0].result.trace.some(t=>t.title==='Queue run complete')).toBe(true);expect(b.values).toEqual(lab.fixture.values);expect(JSON.stringify(lab)).toBe(original);
   const rollback=grade('rollout-rollback',repairs['rollout-rollback']);expect(rollback.trace.some(t=>t.title==='Rollback to stable')).toBe(true);expect(grade('rollout-rollback',{...repairs['rollout-rollback'],canary:0}).status).toBe('needs-repair');
  });
+ it('supplies known principal ARN conditions and leaves unprovided principal tags as context needs',()=>{
+  for(const [labId,field,action,resource,objective]of [['api-authorization','executionPolicy','dynamodb:PutItem',labArns.table,'write'],['cognito-sts','rolePolicy','dynamodb:Query',labArns.table,'permission'],['ecs-artifact','taskPolicy','dynamodb:PutItem',labArns.table,'identity']] as const){
+   const conditional=(condition:unknown)=>JSON.stringify({Version:'2012-10-17',Statement:[{Effect:'Allow',Action:action,Resource:resource,Condition:condition}]});
+   const known=conditional({ArnEquals:{'aws:PrincipalArn':labArns.role}});expect(grade(labId,{...repairs[labId],[field]:known}).checks.find(c=>c.id===objective)?.status,labId).toBe('pass');
+   const unknown=conditional({StringEquals:{'aws:PrincipalTag/team':'learning'}}),result=grade(labId,{...repairs[labId],[field]:unknown}).checks.find(c=>c.id===objective);expect(result?.status,labId).toBe('needs-context');expect(result?.explanation).toContain('aws:PrincipalTag/team');
+   const mismatched=conditional({ArnEquals:{'aws:PrincipalArn':labArns.role+'-other'}});expect(grade(labId,{...repairs[labId],[field]:mismatched}).checks.find(c=>c.id===objective)?.status).toBe('fail');
+  }
+ });
+ it('does not accept broader Cognito operations or resources merely because DeleteItem is absent',()=>{
+  for(const rolePolicy of [policy(['dynamodb:Query','dynamodb:PutItem','dynamodb:UpdateItem','dynamodb:Scan'],['*']),policy(['dynamodb:Query'],['*']),policy(['dynamodb:Query','dynamodb:GetItem'],[labArns.table]),policy(['dynamodb:Query'],[labArns.table,labArns.table+'-other'])])expect(grade('cognito-sts',{...repairs['cognito-sts'],rolePolicy}).checks.find(c=>c.id==='permission')?.status).toBe('fail');
+ });
+ it('accepts equivalent finite scoped policies and effective explicit restrictions',()=>{
+  const variants=[
+   {Statement:{Resource:[labArns.table],Action:['dynamodb:query'],Effect:'Allow'},Version:'2012-10-17'},
+   {Version:'2012-10-17',Statement:[{Sid:'OnlyRead',Effect:'Allow',Resource:labArns.table,Action:'dynamodb:Query'},{Effect:'Deny',Action:['dynamodb:PutItem','dynamodb:DeleteItem'],Resource:'*'}]},
+   {Version:'2012-10-17',Statement:[{Effect:'Allow',Action:['dynamodb:Query','dynamodb:PutItem'],Resource:[labArns.table,labArns.table+'-other']},{Effect:'Deny',Action:'dynamodb:PutItem',Resource:'*'},{Effect:'Deny',Action:'dynamodb:Query',Resource:labArns.table+'-other'}]},
+  ];
+  for(const value of variants)expect(grade('cognito-sts',{...repairs['cognito-sts'],rolePolicy:JSON.stringify(value)}).checks.find(c=>c.id==='permission')?.status).toBe('pass');
+  const conditionallyBroad={Version:'2012-10-17',Statement:[{Effect:'Allow',Action:'dynamodb:Query',Resource:labArns.table},{Effect:'Allow',Action:'dynamodb:PutItem',Resource:labArns.table,Condition:{StringEquals:{'aws:PrincipalTag/team':'learning'}}}]};expect(grade('cognito-sts',{...repairs['cognito-sts'],rolePolicy:JSON.stringify(conditionallyBroad)}).checks.find(c=>c.id==='permission')?.status).toBe('needs-context');
+ });
+ it('classifies valid prefix/operator patterns consistently outside the exact subset while retaining syntax errors',()=>{
+  for(const pattern of [{source:[{prefix:'study.'}],'detail-type':['OrderCreated'],detail:{status:['paid']}},{source:['study.orders'],'detail-type':[{prefix:'Order'}],detail:{status:['paid']}},{source:['study.orders'],'detail-type':['OrderCreated'],detail:{status:[{prefix:'pa'}]}},{account:['111122223333'],source:['study.orders']},{'$or':[{source:['study.orders']},{source:['other']}]}]){
+   const result=grade('event-routing',{...repairs['event-routing'],pattern:JSON.stringify(pattern)});expect(result.checks.filter(c=>c.id!=='target').every(c=>c.status==='unsupported')).toBe(true);
+  }
+  expect(grade('event-routing',{...repairs['event-routing'],pattern:'{"source":[{'}).checks.find(c=>c.id==='positive')?.status).toBe('fail');
+  expect(grade('event-routing',{...repairs['event-routing'],pattern:'{"source":"study.orders"}'}).checks.find(c=>c.id==='positive')?.status).toBe('fail');
+ });
 });

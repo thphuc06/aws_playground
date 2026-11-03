@@ -12,13 +12,46 @@ const strings=(value:unknown):string[]=>{const parsed=json(value);if(!Array.isAr
 const outcome=(ok:boolean,success:string,failure:string)=>({status:ok?'pass' as const:'fail' as const,explanation:ok?success:failure});
 function policy(value:unknown,action:string,resource:string){
  if(typeof value!=='string')throw new Error('Supply an identity-policy document.');const validation=validatePolicyDocument(value,'identity');if(validation.errors.length)throw new Error(validation.errors.join(' '));
- return evaluatePolicyScenario([{id:'lab-policy',name:'Lab application policy',kind:'identity',document:value}],{action,resource,principal:labArns.role,conditions:{},sameAccount:true,completeContext:true});
+ const context={action,resource,principal:labArns.role,conditions:{'aws:PrincipalArn':labArns.role},sameAccount:true,completeContext:false};
+ const evaluate=(document:string)=>evaluatePolicyScenario([{id:'lab-policy',name:'Lab application policy',kind:'identity' as const,document}],context);
+ const result=evaluate(value),missingKeys=new Set<string>();
+ // Missing metadata is unknown, not a claim that the key is absent in AWS.
+ // Inspect only statements the shared evaluator cannot already rule out.
+ if(result.decision==='not-evaluated'&&validation.document){const statements=Array.isArray(validation.document.Statement)?validation.document.Statement:[validation.document.Statement];for(const statement of statements){if(evaluate(JSON.stringify({Version:validation.document.Version,Statement:[statement]})).decision!=='not-evaluated')continue;for(const [operator,conditions]of Object.entries(statement.Condition??{})){if(!['StringEquals','StringLike','ArnEquals','ArnLike','Bool','Null'].includes(operator))continue;for(const key of Object.keys(conditions))if(!Object.keys(context.conditions).some(known=>known.toLowerCase()===key.toLowerCase()))missingKeys.add(key)}}}
+ return {...result,uncertainty:missingKeys.size?'needs-context' as const:'unsupported' as const,missingKeys:[...missingKeys]};
 }
+const inconclusivePolicy=(result:ReturnType<typeof policy>)=>({status:result.uncertainty,explanation:result.missingKeys.length?'The fixture does not supply condition context for '+result.missingKeys.join(', ')+'. No AWS denial is inferred.':result.explanation.join(' ')});
 function permission(value:unknown,action:string,resource:string,denyAction?:string){
- const result=policy(value,action,resource);if(result.decision==='not-evaluated')return {status:'unsupported' as const,explanation:result.explanation.join(' ')};
+ const result=policy(value,action,resource);if(result.decision==='not-evaluated')return inconclusivePolicy(result);
  if(result.decision!=='allowed')return {status:'fail' as const,explanation:`The declared identity-policy fixture does not allow ${action} on the supplied resource: ${result.decision}.`};
- if(denyAction){const other=policy(value,denyAction,resource);if(other.decision==='not-evaluated')return {status:'unsupported' as const,explanation:other.explanation.join(' ')};if(other.decision==='allowed')return {status:'fail' as const,explanation:`The policy also grants ${denyAction}; that exceeds this fixture's scoped operation requirement.`};}
+ if(denyAction){const other=policy(value,denyAction,resource);if(other.decision==='not-evaluated')return inconclusivePolicy(other);if(other.decision==='allowed')return {status:'fail' as const,explanation:`The policy also grants ${denyAction}; that exceeds this fixture's scoped operation requirement.`};}
  return {status:'pass' as const,explanation:`${action} is allowed by the supported identity-policy subset for this supplied context. Other AWS authorization layers remain assumptions.`};
+}
+function queryOnlyPermission(value:unknown){
+ const required=permission(value,'dynamodb:Query',labArns.table);if(required.status!=='pass')return required;
+ const doc=validatePolicyDocument(String(value),'identity').document!,statements=Array.isArray(doc.Statement)?doc.Statement:[doc.Statement];
+ const list=(v:unknown):string[]=>typeof v==='string'?[v]:Array.isArray(v)?v:[];
+ let unbounded=false,uncertain:ReturnType<typeof inconclusivePolicy>|undefined;
+ for(const statement of statements.filter(s=>s.Effect==='Allow')){
+  const actions=list(statement.Action),resources=list(statement.Resource);const wildcardAction=actions.some(a=>/[?*]/.test(a)),wildcardResource=resources.some(r=>/[?*]/.test(r));unbounded ||=wildcardAction||wildcardResource;
+  const actionProbes=[...new Set([...actions.filter(a=>!/[?*]/.test(a)),...(wildcardAction?['dynamodb:Query','dynamodb:GetItem','dynamodb:PutItem','dynamodb:UpdateItem','dynamodb:DeleteItem','dynamodb:Scan']:[])])];
+  const resourceProbes=[...new Set([...resources.filter(r=>!/[?*]/.test(r)),...(wildcardResource?[labArns.table,labArns.table+'-other','arn:aws:dynamodb:us-east-1:111122223333:table/OtherOrders']:[])])];
+  for(const action of actionProbes)for(const resource of resourceProbes){if(action.toLowerCase()==='dynamodb:query'&&resource===labArns.table)continue;const result=policy(value,action,resource);if(result.decision==='allowed')return {status:'fail' as const,explanation:`Within the modeled subset, the supplied policy also allows ${action} on ${resource}. This fixture requires only Query on the Orders table.`};if(result.decision==='not-evaluated')uncertain=inconclusivePolicy(result);}
+ }
+ if(uncertain)return uncertain;
+ if(unbounded)return {status:'unsupported' as const,explanation:'No extra permission was established by the bounded probes, but wildcard action/resource domains cannot be proved Query-only by this lab. Use explicit scoped resources or review the unsupported policy outside this exercise.'};
+ return {status:'pass' as const,explanation:'The required Query is allowed, and the finite explicit action/resource grants do not permit other operations or resources in the supplied principal context. This is not a complete AWS authorization assessment.'};
+}
+function exactPatternBoundary(value:unknown):string|undefined{
+ if(typeof value==='string'&&value.length>10000)return 'Pattern exceeds this exact-match preview’s 10,000-character boundary.';
+ const parsed=json(value);
+ const visit=(node:any,root=false,depth=0):boolean=>{
+  if(depth>10)return true;
+  if(Array.isArray(node))return node.some(item=>typeof item==='number'||!!item&&typeof item==='object');
+  if(node&&typeof node==='object')return Object.entries(node).some(([key,item])=>key.includes('.')||key.startsWith('$')||root&&!['source','detail-type','detail'].includes(key)||root&&['source','detail-type'].includes(key)&&Array.isArray(item)&&item.some(v=>typeof v!=='string')||visit(item,false,depth+1));
+  return false;
+ };
+ return visit(parsed,true)?'This syntactically valid JSON uses pattern features outside the local exact-value subset (for example prefix/numeric operators or additional envelope fields). It is not classified as an AWS-invalid pattern.':undefined;
 }
 const configErrors=(service:string,values:Record<string,any>)=>configurationGraphFindings(service,configurationDocument(values)).filter(f=>f.level==='error').map(f=>f.detail);
 export function evaluateLab(definition:LabDefinition,values:LabValues):LabResult {
@@ -41,7 +74,7 @@ export function evaluateLab(definition:LabDefinition,values:LabValues):LabResult
   }
   case 'event-routing':{
    const evaluate=(kind:'positive'|'negative')=>{const events=json(definition.fixture.artifacts.find(a=>a.id===kind)!.body) as unknown[];return events.map(event=>evaluateEventBridge({busName:'default',enabled:true,rulePattern:String(values.pattern),sampleEvent:JSON.stringify(event),targets:{}},[]))};
-   for(const kind of ['positive','negative'] as const)check(kind,['pattern'],()=>{const results=evaluate(kind),bad=results.find(r=>r.status==='config-error');if(bad){const detail=bad.findings.map(f=>f.detail).join(' ');return {status:/not modeled|outside|subset|unsupported|only exact|operators/i.test(detail)?'unsupported':'fail',explanation:detail}}return outcome(results.every(r=>kind==='positive'?r.matched===true:r.matched===false),kind==='positive'?'Both intended events match.':'Both excluded events remain filtered.',kind==='positive'?'At least one intended paid order is filtered. Read exact source, detail-type and nested status.':'The pattern is too broad for at least one negative fixture.')});
+   for(const kind of ['positive','negative'] as const)check(kind,['pattern'],()=>{const outside=exactPatternBoundary(values.pattern);if(outside)return {status:'unsupported',explanation:outside};const results=evaluate(kind),bad=results.find(r=>r.status==='config-error');if(bad)return {status:'fail',explanation:bad.findings.map(f=>f.detail).join(' ')};return outcome(results.every(r=>kind==='positive'?r.matched===true:r.matched===false),kind==='positive'?'Both intended events match.':'Both excluded events remain filtered.',kind==='positive'?'At least one intended paid order is filtered. Read exact source, detail-type and nested status.':'The pattern is too broad for at least one negative fixture.')});
    check('target',['targetGrant'],()=>outcome(values.targetGrant==='scoped-resource-policy','The selected target policy grants the EventBridge service principal access scoped to this rule.','The selected resource-policy path must scope invocation to the rule; the Lambda execution role is a different boundary.'));break;
   }
   case 'dynamodb-access':
@@ -51,11 +84,11 @@ export function evaluateLab(definition:LabDefinition,values:LabValues):LabResult
   case 's3-kms':
    check('object',['identityPolicy'],()=>permission(values.identityPolicy,'s3:GetObject',labArns.object));
    check('decrypt',['identityPolicy','keyContext'],()=>values.keyContext!=='provided-delegation'?{status:'fail',explanation:'Bucket encryption does not establish key permission. Use the explicit supplied key-policy context or leave this Needs context.'}:permission(values.identityPolicy,'kms:Decrypt',labArns.key));
-   check('scope',['identityPolicy'],()=>{const result=policy(values.identityPolicy,'s3:GetObject',labArns.otherObject);return result.decision==='not-evaluated'?{status:'unsupported',explanation:result.explanation.join(' ')}:outcome(result.decision!=='allowed','The unrelated private object is not allowed by this supplied identity policy.','The repair also exposes the excluded private object. Narrow the object resources or add a suitable explicit restriction.')} );break;
+   check('scope',['identityPolicy'],()=>{const result=policy(values.identityPolicy,'s3:GetObject',labArns.otherObject);return result.decision==='not-evaluated'?inconclusivePolicy(result):outcome(result.decision!=='allowed','The unrelated private object is not allowed by this supplied identity policy.','The repair also exposes the excluded private object. Narrow the object resources or add a suitable explicit restriction.')} );break;
   case 'cognito-sts':
    check('federation',['credentialPath'],()=>outcome(['identity-pool','web-identity'].includes(String(values.credentialPath)),'A supplied configured federation path obtains a temporary AWS session.','A user-pool JWT is an identity token, not the AWS access key/secret/session-token credential set.'));
    check('signing',['requestAuth','refresh'],()=>outcome(values.requestAuth==='sigv4'&&values.refresh==='provider','The SDK signs requests with a refreshed temporary session.','The AWS API needs the selected signing/session contract; extending a user token does not refresh copied AWS credentials.'));
-   check('permission',['rolePolicy'],()=>permission(values.rolePolicy,'dynamodb:Query',labArns.table,'dynamodb:DeleteItem'));break;
+   check('permission',['rolePolicy'],()=>queryOnlyPermission(values.rolePolicy));break;
   case 'private-connectivity':
    check('dns',['privateDns','vpcDns'],()=>outcome(values.privateDns==='enabled'&&values.vpcDns==='both','The chosen private DNS path has both VPC prerequisites declared.','For the supplied standard service hostname path, enable endpoint private DNS and both VPC DNS prerequisites.'));
    check('network',['fromPort','toPort','source'],()=>{const errors=trafficRuleErrors({protocol:'tcp',fromPort:values.fromPort,toPort:values.toPort});return outcome(!errors.length&&values.fromPort===443&&values.toPort===443&&values.source==='app-sg','The rule matches the fixture’s scoped HTTPS ingress requirement.',errors.join(' ')||'Use TCP 443 from the supplied application group; open internet ingress or port 80 does not meet this requirement.')});
