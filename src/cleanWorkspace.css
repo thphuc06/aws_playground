@@ -99,8 +99,7 @@ body :is(button, a, input, select, textarea, summary):focus-visible {
 .architecture-studio .builder-canvas .react-flow__node-default.selected .react-flow__handle::after { background: var(--accent); box-shadow: 0 0 0 2px var(--emphasis); }
 .architecture-studio .edge-bend-handle { background: var(--accent)!important; border-color: var(--surface)!important; }
 .architecture-studio .edge-bend-handle.curve-grip { background: var(--info-text)!important; }
-.architecture-studio .edge-bend-handle.edge-segment-grip,
-.architecture-studio .edge-bend-handle[data-handle-kind=corner] { background: var(--accent)!important; }
+.architecture-studio .edge-bend-handle.edge-segment-grip { background: var(--info-text)!important; border-radius:50%!important; }
 .builder-canvas .react-flow__node.diagram-emphasis { box-shadow: 0 0 0 4px var(--emphasis)!important; }
 @keyframes diagram-emphasis-pulse { 50% { box-shadow: 0 0 0 7px var(--emphasis); } }
 .react-flow__controls { box-shadow: 0 2px 8px var(--shadow); }

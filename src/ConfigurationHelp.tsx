@@ -1,5 +1,6 @@
 import type {ConfigField} from './configurationTypes';
 import ContextHelp from './ContextHelp';
+import {chapterNavigation} from './chapterNavigation';
 export default function ConfigurationHelp({field}:{field:ConfigField}){
  return <ContextHelp label={field.label+' help'}><p>{field.documentation?.purpose??field.help}</p>
  {field.semantics&&<p>Meaning: {field.semantics.replaceAll('-',' ')}.</p>}
@@ -7,7 +8,8 @@ export default function ConfigurationHelp({field}:{field:ConfigField}){
  {field.documentation?.omission&&<p>When omitted: {field.documentation.omission}</p>}
  {field.documentation?.effects?.map(effect=><p key={effect}>{effect}</p>)}
  {field.documentation?.examples?.map((example,index)=><div key={index}><b>{example.valid===false?'Counterexample':'Example'}</b><code>{JSON.stringify(example.value)}</code><p>{example.explanation}</p></div>)}
- {field.documentationSource&&<p><a href={field.documentationSource.url} target="_blank" rel="noreferrer">Decision guide: {field.documentationSource.title} ↗</a> · checked {field.documentationSource.verified}</p>}
+ {(field.documentationReferences??(field.documentationSource?[field.documentationSource]:[])).map(source=><p key={source.url}><a href={source.url} target="_blank" rel="noreferrer">Decision guide: {source.title} ↗</a> · checked {source.verified}</p>)}
+ {field.documentation?.relatedLessons?.map(id=><p key={id}><a href={'?view=learn&exam=DVA-C03&chapter='+encodeURIComponent(id)} target="_blank" rel="noreferrer">Related lesson: {chapterNavigation.find(chapter=>chapter.id===id)?.title??id} ↗</a></p>)}
  {field.evidence&&<p>Evidence: {field.evidence.status.replaceAll('-',' ')}{field.evidence.operation?' | '+field.evidence.operation:''}{field.evidence.apiPath?' | '+field.evidence.apiPath:''}. {field.evidence.scope}</p>}
  {field.kind==='number'&&<p>{field.integer?'Whole numbers. ':'Numeric value. '}{field.allowedNumbers?'Allowed values: '+field.allowedNumbers.join(', '):field.min!==undefined||field.max!==undefined?'Declared range: '+(field.min??'not specified')+' to '+(field.max??'not specified'):''}{field.unit?' '+field.unit:''}.</p>}
  {field.when&&<p>Available when {field.when.field} is {field.when.values.map(String).join(' or ')}.</p>}

@@ -2,6 +2,7 @@ import {useMemo,useState} from 'react';
 import {configurationFields} from './configurationRegistry';
 import type {ConfigField} from './configurationTypes';
 import './serviceConfigurationReference.css';
+import {chapterNavigation} from './chapterNavigation';
 
 function flatten(fields:ConfigField[],parent=''):{path:string;field:ConfigField}[]{
  return fields.flatMap(field=>[{path:parent+field.key,field},...flatten(field.itemFields??[],parent+field.key+'.')]);
@@ -26,7 +27,8 @@ export default function ServiceConfigurationReference({serviceId}:{serviceId:str
    {field.awsLimit&&<p><b>{field.awsLimit.kind==='hard'?'Hard limit':field.awsLimit.kind==='adjustable'?'Adjustable quota':'Context-dependent limit'}:</b> {field.awsLimit.description} <a href={field.awsLimit.sourceUrl} target="_blank" rel="noreferrer">Limit reference ↗</a></p>}
    {!!field.documentation?.effects?.length&&<ul>{field.documentation.effects.map(effect=><li key={effect}>{effect}</li>)}</ul>}
    {field.documentation?.examples?.map((example,index)=><div className="service-reference-example" key={index}><b>{example.valid===false?'Counterexample':'Example'}</b><pre>{JSON.stringify(example.value,null,2)}</pre><p>{example.explanation}</p></div>)}
-   {field.documentationSource&&<p><a href={field.documentationSource.url} target="_blank" rel="noreferrer">Decision guide: {field.documentationSource.title} · {field.documentationSource.verified} ↗</a></p>}
+   {(field.documentationReferences??(field.documentationSource?[field.documentationSource]:[])).map(source=><p key={source.url}><a href={source.url} target="_blank" rel="noreferrer">Decision guide: {source.title} · {source.verified} ↗</a></p>)}
+   {field.documentation?.relatedLessons?.map(id=><p key={id}><a href={'?view=learn&exam=DVA-C03&chapter='+encodeURIComponent(id)} target="_blank" rel="noreferrer">Study: {chapterNavigation.find(chapter=>chapter.id===id)?.title??id} ↗</a></p>)}
    {field.audit&&<p><b>Recorded check:</b> {field.audit.scope} · {field.audit.checked}</p>}
    {field.evidence&&<p><b>Evidence scope:</b> {field.evidence.status.replaceAll('-',' ')}. {field.evidence.scope}</p>}
    {field.source&&<a href={field.source.url} target="_blank" rel="noreferrer">{field.source.title} · source review {field.source.verified} ↗</a>}

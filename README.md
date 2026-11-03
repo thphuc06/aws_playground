@@ -22,10 +22,13 @@ not replace the active workspace. Imported historical reports are not fresh proo
 Configuration supports field search, detail/changed filters, prerequisite links,
 keyboard tabs and nested problem navigation. Defaults fill only missing fields.
 UI/backend mutations share stable diagnostic identities and dependency context.
-The first authored decision-note groups cover 894 paths in 29 services; remaining
-groups are tracked in [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md). The full
+Authored decision-note groups cover all 1,405 paths in the 58-service catalog.
+Shared canonical resources, scoped recovery snapshots and twelve isolated repair
+labs are integrated separately from the legacy lessons. The full
 inventory remains 58 services / 925 root fields / 1,405 paths including columns.
 Documented guidance, bounded checks and real AWS validation remain separate.
+
+The exact remaining scope is recorded in [REMAINING-GAPS.md](REMAINING-GAPS.md).
 
 See [LEARNING-SURFACE-REPORT.md](LEARNING-SURFACE-REPORT.md) for generated evidence
 dimensions and [docs/release-verification-matrix.md](docs/release-verification-matrix.md)
@@ -34,8 +37,9 @@ for release gates. Source and deployment status are verified independently.
 # Current DVA-C03 assistant update
 
 Wire editing: select a line, then drag either end onto a service body to reconnect.
-Hold and drag the line itself to reshape a segment/corner; its active grip hides
-on release. Keyboard users can Tab to controls or use Source/Target service in
+Selecting a wire reveals a circular handle at every straight-segment midpoint.
+Drag only these handles to reshape it; the wire itself only selects. New segments
+receive midpoint handles after release. Escape restores the pre-drag route. Keyboard users can Tab to controls or use Source/Target service in
 Connection configuration. Automatic wires reroute when their endpoints move;
 unrelated wires stay put. Invalid drops preserve the existing connection.
 

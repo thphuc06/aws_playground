@@ -2,6 +2,7 @@ import type {Chapter} from '../content';
 import type {ConfigurationKnowledgeCheck} from '../configurationKnowledgeChecks';
 import type {StudyQuestion} from './questionTypes';
 import {legacyQuestionAliases,legacyNamedQuestionRevisions} from './legacyQuestionAliases';
+import {getConfigurationOptionExplanations,getCodeOptionExplanations} from './legacyOptionExplanations';
 
 /** Compatibility fingerprint, not a cryptographic security check. */
 export function legacyQuestionFingerprint(value: unknown): string {
@@ -21,10 +22,12 @@ export function adaptChapterQuestions(chapter: Chapter, sourceUrl: (id:string)=>
 }
 export function adaptConfigurationQuestion(check:ConfigurationKnowledgeCheck):StudyQuestion {
   assertNamedRevision('configuration:'+check.id,check);
-  return {id:'configuration:'+check.id,revision:1,examVersions:['DVA-C03'],skillRefs:[`DVA-C03:${check.skillId}`],chapterIds:[],serviceIds:check.serviceIds,kind:'single-choice',prompt:check.question,options:check.choices.map((text,i)=>({id:'choice-'+i,text})),correctOptionIds:['choice-'+check.answer],explanation:check.explanation,sourceUrls:[check.sourceUrl],snippet:check.snippet,origin:'configuration'};
+  const explanations=getConfigurationOptionExplanations(check);
+  return {id:'configuration:'+check.id,revision:1,examVersions:['DVA-C03'],skillRefs:[`DVA-C03:${check.skillId}`],chapterIds:[],serviceIds:check.serviceIds,kind:'single-choice',prompt:check.question,options:check.choices.map((text,i)=>({id:'choice-'+i,text,explanation:explanations[i]})),correctOptionIds:['choice-'+check.answer],explanation:check.explanation,sourceUrls:[check.sourceUrl],snippet:check.snippet,origin:'configuration'};
 }
-export function adaptCodeQuestion(check:{id:string;skills:string[];code:string;question:string;choices:string[];answer:number;explanation:string;sourceUrl:string}):StudyQuestion {
+export function adaptCodeQuestion(check:{id:string;skills:string[];title:string;code:string;question:string;choices:string[];answer:number;explanation:string;sourceUrl:string}):StudyQuestion {
   assertNamedRevision('code:'+check.id,check);
-  return {id:'code:'+check.id,revision:1,examVersions:['DVA-C03'],skillRefs:check.skills.map(s=>`DVA-C03:${s}` as const),chapterIds:[],serviceIds:[],kind:'single-choice',prompt:check.question,options:check.choices.map((text,i)=>({id:'choice-'+i,text})),correctOptionIds:['choice-'+check.answer],explanation:check.explanation,sourceUrls:[check.sourceUrl],snippet:check.code,origin:'code'};
+  const explanations=getCodeOptionExplanations(check);
+  return {id:'code:'+check.id,revision:1,examVersions:['DVA-C03'],skillRefs:check.skills.map(s=>`DVA-C03:${s}` as const),chapterIds:[],serviceIds:[],kind:'single-choice',prompt:check.question,options:check.choices.map((text,i)=>({id:'choice-'+i,text,explanation:explanations[i]})),correctOptionIds:['choice-'+check.answer],explanation:check.explanation,sourceUrls:[check.sourceUrl],snippet:check.code,origin:'code'};
 }
 function assertNamedRevision(id:string,value:unknown){if(!legacyNamedQuestionRevisions.some(r=>r.questionId===id&&r.fingerprint===legacyQuestionFingerprint(value)))throw new Error('Question revision needs an explicit compatibility update: '+id);}

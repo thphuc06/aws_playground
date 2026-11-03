@@ -73,7 +73,8 @@ export function semanticConfigurationFindings(service:string,document:Configurat
  }
  if(service==='cloudwatch-logs'){
   if(v.logClass!=='STANDARD'&&v.logClass!==undefined&&(rows(v.metricFilters).length||rows(v.subscriptions).length))add('semantic.040','logClass','Log-class feature mismatch','Metric filters and subscription filters are modeled only for Standard log groups.');
-  if(v.logClass==='DELIVERY'&&(v.query!==undefined||v.retentionDays!==undefined&&v.retentionDays!==2))add('semantic.041','logClass','Delivery log-class limits','Delivery log groups have two-day retention and do not support Logs Insights queries.');
+  if(v.logClass==='DELIVERY'&&v.query!==undefined)add('semantic.041','logClass','Delivery log-class query limit','Delivery log groups do not support Logs Insights queries.');
+  if(v.logClass==='DELIVERY'&&v.retentionDays!==undefined)out.push({ruleId:'semantic.logs-delivery-retention-context',field:'retentionDays',level:'warning',category:'unknown',title:'Delivery retention needs context',detail:'The CreateLogGroup API describes one-day Delivery retention, while the Log Classes guide describes fixed two-day retention. This editor does not certify either duration or a configurable Delivery retention override. Review the applicable service behavior; the normal PutRetentionPolicy value list is unchanged.',sourceUrl:'https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateLogGroup.html',context:{logClass:v.logClass,retentionDays:v.retentionDays}});
  }
  if(service==='kms'){
   if(v.keySpec==='HMAC_256'&&v.keyUsage!==undefined&&v.keyUsage!=='GENERATE_VERIFY_MAC')add('semantic.042','keyUsage','HMAC key usage mismatch','Choose GENERATE_VERIFY_MAC for the modeled HMAC key.');

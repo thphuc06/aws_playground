@@ -109,10 +109,11 @@
 @media(pointer:coarse){.context-help>summary,.configuration-field .context-help>summary{width:32px;height:32px;padding:8px}.context-help-content{top:36px}}
 
 /* Direct wire shaping: show only the grip currently held or keyboard-focused. */
-.architecture-studio .edge-bend-handle{opacity:0;pointer-events:none;width:10px!important;height:10px!important;min-height:10px!important}
+.architecture-studio .edge-bend-handle{opacity:1;pointer-events:all;width:14px!important;height:14px!important;min-height:14px!important;border-radius:50%!important}
 .architecture-studio .edge-bend-handle[data-active=true],.architecture-studio .edge-bend-handle:focus-visible{opacity:1;pointer-events:all}
-.wire-shape-hit{cursor:grab;touch-action:none}.wire-shape-hit:active{cursor:grabbing}
+.wire-shape-hit{cursor:pointer}.wire-shape-hit:active{cursor:pointer}
+.architecture-studio .edge-bend-handle.edge-segment-grip{background:var(--info-text)!important;border-color:var(--surface)!important;border-radius:50%!important}
 
-.architecture-studio .edge-endpoint-grip{position:absolute;left:0;top:0;margin:0!important;transform-origin:0 0;z-index:35;pointer-events:all;width:26px!important;height:26px!important;min-height:26px!important;padding:0!important;border:1px solid transparent!important;border-radius:50%!important;background:transparent!important;color:transparent;cursor:grab;touch-action:none;font-size:18px!important}
+.architecture-studio .edge-endpoint-grip{position:absolute;left:0;top:0;margin:0!important;transform-origin:0 0;z-index:35;pointer-events:all;width:26px;height:26px;min-height:26px;padding:0!important;border:1px solid transparent!important;border-radius:50%!important;background:transparent!important;color:transparent;cursor:grab;touch-action:none;font-size:18px!important}
 .architecture-studio .edge-endpoint-grip:hover,.architecture-studio .edge-endpoint-grip:focus-visible,.architecture-studio .edge-endpoint-grip[data-dragging=true]{background:var(--surface)!important;border-color:var(--accent-line)!important;color:var(--accent-text)}
 .architecture-studio .edge-endpoint-grip[data-dragging=true]{cursor:grabbing}

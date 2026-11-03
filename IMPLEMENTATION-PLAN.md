@@ -1,6 +1,6 @@
 # Kế hoạch hoàn thiện AWS Developer Playground
 
-Trạng thái: đang triển khai theo yêu cầu người dùng ngày 2026-11-02.
+Trạng thái: đã tích hợp bản hiện tại; chốt kiểm tra/phát hành theo yêu cầu tiết kiệm token ngày 2026-11-03. Phần chưa khép nằm trong REMAINING-GAPS.md.
 Baseline: `e3516a412fa654a631fd6ac5a627595e41075bc0`; 691 tests / 55 files đạt.
 Người dùng yêu cầu hoàn thành toàn bộ, kiểm tra, phát hành và chỉ sau đó tắt laptop.
 Không tắt máy khi còn hạng mục chưa hoàn thành hoặc bản phát hành chưa được xác minh.
@@ -46,12 +46,12 @@ Không tắt máy khi còn hạng mục chưa hoàn thành hoặc bản phát h�
 
 | Lane | Worktree | Sở hữu | Trạng thái |
 |---|---|---|---|
-| Workspace | worktrees/workspace | archive/repository/recovery, ArchitectureStudio | In progress |
-| Configuration | worktrees/configuration | diagnostics/mutation parity, inspector/help/field UI, validators | In progress |
-| Curriculum | worktrees/curriculum | 11 brief mới, service metadata/comparisons/glossary | In progress |
-| Practice | worktrees/practice | stable adapters, scoring, attempts/session repository, practice components | In progress |
-| UX | worktrees/ux | main/routes, reader/library/service pages/search, responsive navigation | In progress |
-| Evidence | worktrees/evidence | 58-service surface manifest, inventory/audit tools, provenance docs | In progress |
+| Workspace | worktrees/workspace | archive/repository/recovery, ArchitectureStudio | Integrated |
+| Configuration | worktrees/configuration | diagnostics/mutation parity, inspector/help/field UI, validators | Integrated |
+| Curriculum | worktrees/curriculum | 11 brief mới, service metadata/comparisons/glossary | Integrated |
+| Practice | worktrees/practice | stable adapters, scoring, attempts/session repository, practice components | Integrated |
+| UX | worktrees/ux | main/routes, reader/library/service pages/search, responsive navigation | Integrated |
+| Evidence | worktrees/evidence | 58-service surface manifest, inventory/audit tools, provenance docs | Integrated |
 
 Acceptance: export/import v3 roundtrip; corruption recovery; URL/chapter đúng;
 Runtime dependency jump; fill-missing defaults; empty rows không tăng completion;
@@ -165,3 +165,11 @@ intent thành resource runtime giả để tăng coverage.
 - User duyệt triển khai toàn bộ; tạo sáu worktree độc lập. Sites source đã mở bằng
   workflow chính thức; project/audience public hiện tại được giữ nguyên.
 - Đợt 1 đang thực hiện. Không có release mới hoặc shutdown ở thời điểm ghi dòng này.
+
+## Kết quả tích hợp đến 2026-11-03
+
+- Đợt đầu đã phát hành: GitHub/Render `bfa4810712c298c9f1f5a2d52d2be272afb9583f`, Sites version44, backend SHA và CI đã khớp.
+- Đợt chốt có toàn bộ1.405 decision guides,297 question records/216C03 primary scenarios,58standalone exercises,12isolated labs,20worked cases EN/VI, canonical resources và raw editor recovery.
+- Đã xử lý các finding độc lập về migration/ref/clone, repair/adoption, source conflict, grading/context, stale editor merge, DOM IDs và question entailment.
+- Yêu cầu nối dây mới: thân dây chỉ chọn; từng đoạn thẳng có nút trung điểm tròn; drag nút tạo/cập nhật các đoạn; Escape khôi phục route. Native QA xác nhận1→5→7segment handles, không kéo thân dây.
+- Người dùng yêu cầu khép bản đang làm và báo khoảng trống; không mở thêm phạm vi. Không tắt máy khi điều kiện hoàn tất toàn bộ phạm vi lớn ban đầu chưa đạt.

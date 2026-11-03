@@ -22,6 +22,8 @@ jobs:
           cache: npm
       - name: Check tracked files without printing secrets
         run: npm run check:secrets
+      - name: Check source text encoding
+        run: node scripts/check-text-encoding.mjs
       - run: npm ci
       - name: Unit and integration fixtures (no paid API calls)
         run: npm test

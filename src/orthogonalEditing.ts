@@ -1,4 +1,4 @@
-import {manualRoute,simplifyRoute,MAX_EDGE_BENDS,type Point} from './connectionRouting';
+import {manualRoute,simplifyRoute,type Point} from './connectionRouting';
 import {moveOrthogonalBend} from './edgeGeometry';
 export interface WireControl {kind:'corner'|'segment';index:number;point:Point}
 /** Pick the actual part of the wire being held, without displaying a grip at every bend. */
@@ -9,7 +9,8 @@ export function wireControlAt(route:Point[],point:Point,cornerRadius:number):Wir
  return route.slice(1).map((_,i)=>({kind:'segment' as const,index:i,point:closestPointOnWire(route.slice(i,i+2),point)})).sort((a,b)=>distance(a.point)-distance(b.point))[0];
 }
 const limit=(v:number)=>Math.max(-100000,Math.min(100000,v));
-export function wireControls(route:Point[]):WireControl[]{const corners=route.slice(1,-1).map((point,i)=>({kind:'corner' as const,index:i+1,point}));const segments:WireControl[]=[];for(let i=0;i<route.length-1;i++){const a=route[i],b=route[i+1];if(route.length===2||Math.abs(a.x-b.x)+Math.abs(a.y-b.y)>=80)segments.push({kind:'segment',index:i,point:{x:(a.x+b.x)/2,y:(a.y+b.y)/2}});}return [...corners,...segments].slice(0,MAX_EDGE_BENDS*2);}
+/** One visible control at the exact midpoint of every nonzero straight segment. */
+export function wireControls(route:Point[]):WireControl[]{const segments:WireControl[]=[];for(let i=0;i<route.length-1;i++){const a=route[i],b=route[i+1];if((a.x===b.x||a.y===b.y)&&(a.x!==b.x||a.y!==b.y))segments.push({kind:'segment',index:i,point:{x:(a.x+b.x)/2,y:(a.y+b.y)/2}});}return segments;}
 export function closestPointOnWire(route:Point[],p:Point):Point{let best=Infinity,result=route[0]??p;for(let i=1;i<route.length;i++){const a=route[i-1],b=route[i],point={x:Math.max(Math.min(a.x,b.x),Math.min(Math.max(a.x,b.x),p.x)),y:Math.max(Math.min(a.y,b.y),Math.min(Math.max(a.y,b.y),p.y))},distance=(point.x-p.x)**2+(point.y-p.y)**2;if(distance<best){best=distance;result=point;}}return result;}
 /** Moving a segment inserts endpoint elbows as needed; moving a corner retains orthogonality. */
 export function moveWireControl(route:Point[],control:WireControl,p:Point,independent=false):Point[]{if(route.length<2)return route;const next={x:limit(p.x),y:limit(p.y)},source=route[0],target=route.at(-1)!;
