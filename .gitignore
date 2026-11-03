@@ -14,3 +14,6 @@ backend/dist/
 *.log
 playwright-report/
 test-results/
+
+# Local browser QA tools and execution logs (not part of the application).
+.preview/

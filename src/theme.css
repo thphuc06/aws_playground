@@ -1,19 +1,53 @@
+/* UI/UX Pro Max: documentation-first indigo, neutral reading surfaces, amber cues. */
+:root {
+  --page: #f5f6fb;
+  --surface: #ffffff;
+  --surface-subtle: #f0f2f9;
+  --surface-hover: #e8ebf6;
+  --surface-selected: #e0e5f8;
+  --text: #20243c;
+  --text-secondary: #4c5571;
+  --text-muted: #626c86;
+  --border: #dce1ed;
+  --border-strong: #8993ad;
+  --accent: #4f46e5;
+  --accent-text: #4338ca;
+  --accent-soft: #eeedff;
+  --accent-line: #746be8;
+  --focus: #4f46e5;
+  --highlight-text: #98400d;
+  --highlight-soft: #fff3e5;
+  --highlight-line: #d89a61;
+  --hero-start: #eeedff;
+  --hero-end: #f6f7fc;
+  --brand-solid: #4f46e5;
+  --brand-on: #ffffff;
+  --shadow: rgb(43 39 92 / 7%);
+  --emphasis: rgb(79 70 229 / 16%);
+}
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page: #111820;
-  --surface: #18222e;
-  --surface-subtle: #1d2937;
-  --surface-hover: #253446;
-  --surface-selected: #304258;
-  --text: #e4eaf1;
-  --text-secondary: #b3c0d0;
-  --text-muted: #9baac0;
-  --border: #36475c;
-  --border-strong: #73859c;
-  --accent: #b25816;
-  --accent-text: #f5b87e;
-  --accent-soft: #3a2b21;
-  --accent-line: #c88b55;
+  --page: #101321;
+  --surface: #181d30;
+  --surface-subtle: #1e243a;
+  --surface-hover: #282f49;
+  --surface-selected: #343b5c;
+  --text: #edf0ff;
+  --text-secondary: #bbc4e0;
+  --text-muted: #a3aecb;
+  --border: #353d58;
+  --border-strong: #7785a7;
+  --accent: #a49aff;
+  --accent-text: #b8afff;
+  --accent-soft: #2b2750;
+  --accent-line: #8d82e8;
+  --highlight-text: #ffbd82;
+  --highlight-soft: #372b25;
+  --highlight-line: #ad7953;
+  --hero-start: #242044;
+  --hero-end: #181d30;
+  --brand-solid: #a49aff;
+  --brand-on: #18132f;
   --success-text: #8fd7ad;
   --success-soft: #19382e;
   --success-line: #5e9e7b;
@@ -26,13 +60,13 @@
   --violet-text: #cfb1f4;
   --violet-soft: #352b47;
   --violet-line: #a085bf;
-  --focus: #90c3ff;
-  --canvas: #131c27;
-  --canvas-dot: #35465d;
+  --focus: #b8afff;
+  --canvas: #131829;
+  --canvas-dot: #353e5a;
   --edge: #a0b2c9;
   --shadow: rgb(0 0 0 / 24%);
   --scrim: rgb(0 0 0 / 60%);
-  --emphasis: rgb(245 184 126 / 22%);
+  --emphasis: rgb(164 154 255 / 22%);
 }
 :root[data-theme="dark"] .react-flow__node-networkFrame {background:rgb(96 128 168 / 8%)}
 .theme-control {display:inline-flex;align-items:center;gap:6px;flex:none;margin:0;padding:4px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-subtle);color:var(--text-secondary);font-size:12px;white-space:nowrap}

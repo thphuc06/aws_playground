@@ -1,0 +1,83 @@
+{
+  "checkedAt": "2026-11-03T14:25:16.308Z",
+  "renderedGuides": 58,
+  "results": [
+    {
+      "page": "library",
+      "theme": "light",
+      "width": 375,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "library",
+      "theme": "light",
+      "width": 768,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "library",
+      "theme": "light",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "lambda",
+      "theme": "light",
+      "width": 375,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "lambda",
+      "theme": "light",
+      "width": 768,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "lambda",
+      "theme": "light",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "library",
+      "theme": "dark",
+      "width": 375,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "library",
+      "theme": "dark",
+      "width": 768,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "library",
+      "theme": "dark",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "lambda",
+      "theme": "dark",
+      "width": 375,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "lambda",
+      "theme": "dark",
+      "width": 768,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "lambda",
+      "theme": "dark",
+      "width": 1440,
+      "horizontalOverflow": false
+    }
+  ],
+  "errors": [],
+  "notes": [
+    "Illustrative service reading only; no provider or AWS API calls.",
+    "Search restoration, deep linking, English-only glossary, section focus and architecture isolation passed."
+  ]
+}
