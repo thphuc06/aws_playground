@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import React,{useState} from 'react';
 import {it,expect,vi,beforeEach,afterEach} from 'vitest';
-import {render,screen,fireEvent,cleanup,waitFor} from '@testing-library/react';
+import {render,screen,fireEvent,cleanup,waitFor,act} from '@testing-library/react';
 import type {Graph} from './architectureReview';
 vi.mock('./ArchitectureStudio',()=>({default:({Canvas,...props}:any)=><Canvas {...props}/>}));
-vi.mock('@xyflow/react',()=>({ReactFlowProvider:({children}:any)=>children,ReactFlow:({nodes,edges,onNodeClick,onEdgeClick,children}:any)=><div>{nodes.map((n:any)=><button key={n.id} onClick={()=>onNodeClick({},n)}>{n.type==='networkFrame'?n.data.label:n.id}</button>)}{edges?.map((e:any)=><button key={e.id} onClick={()=>onEdgeClick({},e)}>edge-{e.id}</button>)}{children}</div>,useViewport:()=>({zoom:1,x:0,y:0}),useReactFlow:()=>({fitView:()=>Promise.resolve(),screenToFlowPosition:(p:any)=>p}),NodeResizer:()=>null,Background:()=>null,Controls:()=>null,MarkerType:{ArrowClosed:'arrowclosed'},Position:{Right:'right',Left:'left'}}));
+const flow=vi.hoisted(()=>({current:null as any}));
+vi.mock('@xyflow/react',()=>({ReactFlowProvider:({children}:any)=>children,ReactFlow:(props:any)=>{flow.current=props;const {nodes,edges,onNodeClick,onEdgeClick,children}=props;return <div>{nodes.map((n:any)=><button key={n.id} onClick={()=>onNodeClick({},n)}>{n.type==='networkFrame'?n.data.label:n.id}</button>)}{edges?.map((e:any)=><button key={e.id} onClick={()=>onEdgeClick({},e)}>edge-{e.id}</button>)}{children}</div>},useViewport:()=>({zoom:1,x:0,y:0}),useReactFlow:()=>({fitView:()=>Promise.resolve(),screenToFlowPosition:(p:any)=>p}),NodeResizer:()=>null,Background:()=>null,Controls:()=>null,MarkerType:{ArrowClosed:'arrowclosed'},Position:{Right:'right',Left:'left'}}));
 import Builder from './Builder';
 beforeEach(()=>vi.stubGlobal('matchMedia',()=>({matches:false,addEventListener:()=>{},removeEventListener:()=>{}})));
 afterEach(()=>{cleanup();localStorage.clear();vi.unstubAllGlobals()});
@@ -17,5 +18,13 @@ it('keeps catalog control targets unique across original and draft canvases',()=
  const {container}=render(<><Builder value={graph} onChange={()=>{}}/><Builder value={graph} title="Draft" onChange={()=>{}}/></>);
  const controls=Array.from(container.querySelectorAll<HTMLButtonElement>('.builder-canvas-toolbar button[aria-controls]'));
  expect(controls).toHaveLength(2);const targets=controls.map(control=>control.getAttribute('aria-controls')!);
- expect(new Set(targets).size).toBe(2);for(const target of targets)expect(container.querySelectorAll('[id="'+target+'"]').length).toBe(1);
+ expect(new Set(targets).size).toBe(2);for(const target of targets)expect(container.querySelectorAll('[id="'+target+'"]').length).toBe(1);const ids=Array.from(container.querySelectorAll('[id]')).map(el=>el.id);expect(new Set(ids).size).toBe(ids.length);for(const control of container.querySelectorAll('[aria-controls]'))expect(container.querySelectorAll('[id="'+control.getAttribute('aria-controls')+'"]').length).toBe(1);
+});
+
+it('preserves a frame drag when saving an already-open Lambda configuration draft',()=>{
+ let latest:Graph;
+ function Harness(){const [g,setG]=useState<Graph>({version:1,nodes:[{id:'fn',service:'lambda',label:'Worker',position:{x:900,y:20}}],edges:[],configs:{},network:{version:1,frames:[{id:'frame',kind:'region',name:'Frame',x:0,y:0,width:700,height:500}],membership:{},resources:[]}});latest=g;return <Builder value={g} onChange={setG}/>}
+ render(<Harness/>);fireEvent.click(screen.getByRole('button',{name:'fn'}));fireEvent.change(screen.getByLabelText(/^Timeout/,{selector:'input'}),{target:{value:'12'}});
+ act(()=>flow.current.onNodesChange([{id:'frame',type:'position',position:{x:150,y:75}}]));expect(latest!.network!.frames[0]).toMatchObject({x:150,y:75});
+ fireEvent.click(screen.getByRole('button',{name:'Save configuration'}));expect(latest!.network!.frames[0]).toMatchObject({x:150,y:75});expect((latest!.architecture!.nodes.fn.values as any).timeoutSeconds).toBe(12);
 });

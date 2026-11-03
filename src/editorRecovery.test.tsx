@@ -14,6 +14,7 @@ import PolicyLibraryEditor from './PolicyEditor';
 import CanonicalNetworkPanel from './CanonicalNetworkPanel';
 import NetworkPanel from './NetworkPanel';
 import {prepareResourceMigration} from './resourceMigration';
+import {withResourceRegistry} from './resourceProjection';
 import {emptySecurityLibrary} from './configurationTypes';
 
 vi.mock('./ConfigurationDocumentEditor',()=>({default:({value,onChange,label}:any)=><textarea aria-label={label} value={value} onChange={e=>onChange(e.target.value)}/>}));
@@ -110,4 +111,17 @@ it('keeps unfinished policy text when switching inspector tabs and includes the 
  fireEvent.change(await screen.findByLabelText('identity policy JSON'),{target:{value:JSON.stringify({Version:'2012-10-17',Statement:[{Effect:'Allow',Action:'s3:GetObject',Resource:'arn:aws:s3:::example/*'}]})}});
  fireEvent.click(screen.getByRole('button',{name:'Save policy to draft library'}));expect(captured()).toHaveLength(1);expect(JSON.parse(captured()[0].raw).securityLibrary.policies).toHaveLength(1);
  fireEvent.click(screen.getByRole('button',{name:'Save configuration'}));expect(captured()).toHaveLength(0);
+});
+
+it.each([false,true])('merges canonical bindings with newer geometry, or retains a conflicting draft (%s)',conflict=>{
+ const initial=prepareResourceMigration(graph('ec2')).graph,registry=initial.network!.registry!;
+ registry.resources.push({id:'vpc-a',kind:'vpc',name:'VPC A',context:{},values:{}},{id:'vpc-b',kind:'vpc',name:'VPC B',context:{},values:{}});
+ initial.network!.frames.push({id:'visual',kind:'region',name:'Visual region',x:0,y:0,width:700,height:500});
+ let latest:Graph;const saved=vi.fn();
+ function Harness(){const [g,setG]=useState(withResourceRegistry(initial,registry));latest=g;return <Capture source={g}><button onClick={()=>setG(current=>({...current,network:{...current.network!,frames:current.network!.frames.map(f=>f.id==='visual'?{...f,x:150,y:75}:f),registry:{...current.network!.registry!,serviceBindings:{...current.network!.registry!.serviceBindings,...(conflict?{'same-node':{...current.network!.registry!.serviceBindings['same-node'],vpc:{type:'local' as const,kind:'vpc' as const,id:'vpc-b'}}}:{})}}}}))}>Concurrent change</button><ConfigurationInspector service="ec2" nodeId="same-node" values={g.architecture?.nodes['same-node']??{}} graph={g} onChange={(values,library,network)=>{saved(values,library,network);setG(current=>({...current,network:network??current.network,securityLibrary:library??current.securityLibrary,architecture:{nodes:{'same-node':values},relationships:{}}}))}}/></Capture>}
+ render(<Harness/>);fireEvent.click(screen.getByRole('tab',{name:'Networking'}));fireEvent.change(screen.getByLabelText('Declared VPC'),{target:{value:'vpc-a'}});fireEvent.click(screen.getByRole('button',{name:'Concurrent change'}));
+ const save=screen.getByRole('button',{name:'Save configuration'}) as HTMLButtonElement;
+ if(conflict){expect(save.disabled).toBe(true);expect(screen.getByRole('alert').textContent).toContain('network.registry.serviceBindings.same-node.vpc');expect(JSON.parse(captured()[0].raw).network.registry.serviceBindings['same-node'].vpc.id).toBe('vpc-a');fireEvent.click(save);expect(saved).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Cancel edits'}));expect(captured()).toHaveLength(0);expect((screen.getByLabelText('Declared VPC') as HTMLSelectElement).value).toBe('vpc-b');}
+ else{expect(save.disabled).toBe(false);fireEvent.click(save);expect(saved).toHaveBeenCalledOnce();expect(saved.mock.calls[0][1]).toBeUndefined();expect(latest!.network!.registry!.serviceBindings['same-node'].vpc?.id).toBe('vpc-a');expect(captured()).toHaveLength(0);}
+ expect(latest!.network!.frames.find(f=>f.id==='visual')).toMatchObject({x:150,y:75});
 });
