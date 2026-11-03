@@ -115,6 +115,45 @@
 .atlas-study .service-detail-panel summary { font-size: 14px; line-height: 1.6; min-height: 44px; }
 .atlas-study .service-related-lessons button { display: flex; align-items: center; gap: 12px; line-height: 1.6; min-height: 44px; text-align: left; }
 .atlas-study pre { max-width: 100%; overflow-x: auto; }
+.atlas-reading-main { min-width: 0; }
+.atlas-toc { max-height: calc(100dvh - 48px); overflow-y: auto; scrollbar-width: thin; }
+.handbook-subsection { margin-top: 30px; padding-top: 26px; border-top: 1px solid var(--border); }
+.handbook-subsection:first-of-type { padding-top: 0; border-top: 0; }
+.service-handbook h3 { display: flex; align-items: center; gap: 9px; font-size: 18px; line-height: 1.5; margin-bottom: 18px; }
+.service-handbook h4 { font-size: 15px; line-height: 1.6; margin: 0 0 8px; color: var(--text); }
+.service-handbook p, .service-handbook dd, .handbook-checks li { font-size: 15px; line-height: 1.85; color: var(--text-secondary); overflow-wrap: anywhere; }
+.service-handbook p, .service-handbook dd { max-width: 80ch; }
+.handbook-notes { list-style: none; padding: 0; margin: 0; display: grid; gap: 20px; }
+.handbook-notes > li { display: flex; gap: 14px; align-items: flex-start; }
+.handbook-notes > li > div { min-width: 0; }
+.handbook-step { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 28px; margin-top: 2px; border: 1px solid var(--accent-line); border-radius: 50%; color: var(--accent-text); font-size: 12px; font-weight: 700; }
+.handbook-citations { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: baseline; }
+.handbook-citations a { display: inline-block; min-width: 24px; padding: 0 4px; color: var(--accent-text); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.handbook-settings { display: grid; gap: 12px; }
+.handbook-settings article { padding: 20px; background: var(--surface-subtle); border: 1px solid var(--border); border-left: 3px solid var(--accent-line); border-radius: 8px; }
+.handbook-settings p + p { margin-top: 10px; }
+.handbook-settings strong { color: var(--text); font-weight: 650; }
+.handbook-code { border: 1px solid var(--border-strong); border-radius: 9px; margin-top: 18px; overflow: hidden; }
+.handbook-code > div { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 7px 14px; background: var(--surface-subtle); color: var(--text-secondary); font-size: 12px; border-bottom: 1px solid var(--border); }
+.atlas-study .handbook-code button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 7px 12px; color: var(--accent-text); border: 1px solid var(--border-strong); background: var(--surface); }
+.handbook-code pre { margin: 0; padding: 20px; background: var(--page); color: var(--text); font-size: 13px; line-height: 1.8; tab-size: 2; }
+.service-handbook .handbook-copy-status { min-height: 20px; margin-top: 3px; font-size: 12px; color: var(--text-muted); }
+.handbook-checks { padding-left: 20px; margin: 8px 0 0; }
+.handbook-checks li + li { margin-top: 8px; }
+.handbook-diagnostics { display: grid; gap: 16px; }
+.handbook-diagnostics article { padding: 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-subtle); }
+.handbook-diagnostic-title { display: flex; align-items: baseline; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+.handbook-diagnostic-title > span { font-size: 12px; color: var(--highlight-text); font-weight: 700; }
+.handbook-diagnostics dl { display: grid; gap: 14px; margin: 0 0 10px; }
+.handbook-diagnostics dt { color: var(--text); font-size: 12px; font-weight: 700; margin-bottom: 3px; }
+.handbook-diagnostics dd { margin: 0; }
+.handbook-sources { margin-top: 26px; border-top: 1px solid var(--border); padding-top: 16px; }
+.handbook-sources summary { min-height: 44px; padding: 10px 0; color: var(--accent-text); cursor: pointer; font-size: 14px; }
+.handbook-sources ol { padding-left: 22px; }
+.handbook-sources li { margin: 12px 0; color: var(--text-muted); font-size: 13px; }
+.handbook-sources a { display: inline; color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; line-height: 1.7; }
+.handbook-sources a > svg { margin-left: 6px; }
+.handbook-sources small { display: block; font-size: 12px; color: var(--text-muted); margin-top: 3px; }
 .atlas-library .learning-glossary, .atlas-library .service-comparisons { margin-top: 25px; }
 @media (min-width: 1600px) { .atlas-library .atlas-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 1150px) {
@@ -130,7 +169,7 @@
   .atlas-library .atlas-filters { grid-template-columns: 1fr 1fr; }
   .atlas-search-label { grid-column: 1 / -1; }
   .atlas-reading-layout { display: block; }
-  .atlas-toc { position: static; margin-bottom: 25px; }
+  .atlas-toc { position: static; margin-bottom: 25px; max-height: none; overflow: visible; }
   .atlas-toc nav { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
   .atlas-toc-note { display: none; }
   .atlas-study .atlas-add { width: auto; }
@@ -165,6 +204,8 @@
   .guide-steps > li { gap: 12px; }
   .guide-steps p { font-size: 14px; }
   .guide-result, .guide-failure { padding: 16px; }
+  .handbook-settings article, .handbook-diagnostics article { padding: 16px; }
+  .handbook-code pre { padding: 16px; font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .atlas-library *, .atlas-study * { transition: none !important; scroll-behavior: auto !important; }

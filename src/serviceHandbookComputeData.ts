@@ -1,0 +1,958 @@
+import type {HandbookNote, ServiceHandbook} from './serviceHandbookTypes';
+
+const note = (title: string, detail: string, ...sourceIds: string[]): HandbookNote => ({title, detail, sourceIds});
+const setting = (name: string, choice: string, tradeoff: string, ...sourceIds: string[]) => ({name, choice, tradeoff, sourceIds});
+const fault = (symptom: string, likelyCause: string, check: string, resolution: string, ...sourceIds: string[]) => ({symptom, likelyCause, check, resolution, sourceIds});
+const source = (id: string, title: string, url: string) => ({id, title, url, verified: '2026-11-03'});
+
+/** Original implementation notes. Examples are reading material, not executed integrations. */
+export const computeDataHandbooks: ServiceHandbook[] = [
+  {
+    serviceId: 'lambda',
+    operatingModel: [
+      note("Identify the invocation contract", "For Lambda Event Functions, an API caller, an asynchronous service trigger and a polling event source mapping have different retry owners. Draw who acknowledges the event and where an unprocessed record waits before choosing error handling.", "mapping"),
+      note("Treat a batch as multiple business operations", "An SQS event source mapping invokes one handler with several records. A successful invocation can hide a failed business record if the handler catches an exception without reporting it. Record outcomes per message, not only per invocation.", "batch"),
+      note("Allocate concurrency against a downstream budget", "Reserved concurrency reserves and caps the function's concurrent executions; it does not pre-initialize environments. If each invocation opens database connections, budget their aggregate demand together with other consumers before raising the cap.", "concurrency"),
+    ],
+    setup: [
+      note("Write the event and acknowledgement contract", "Capture a representative event, its business identifier and the producer's retry behavior. For a queue worker, document when an item is safe to acknowledge and how an interrupted attempt is recognized on the next delivery.", "mapping"),
+      note("Create the execution identity", "Give the function an execution role trusted by Lambda and grant only its necessary log and downstream operations. Keep that role separate from the permission allowing a caller or event source to invoke the function.", "role"),
+      note("Measure resource settings", "Run representative payload sizes and failure paths while varying memory. Compare duration, memory usage and end-to-end latency rather than using the smallest memory setting by default; CPU allocation increases with the memory setting.", "memory"),
+      note("Make the batch failure test reproducible", "With a test SQS mapping, enable partial batch responses, fail one known message and inspect which identifiers return. Repeat with an uncaught handler exception, because that exception still fails the whole batch.", "batch"),
+    ],
+    configuration: [
+      setting("MemorySize", "Select a measured setting using realistic CPU, parsing and network work.", "More memory also changes available CPU; a faster invocation can offset its higher per-time resource allocation. Benchmark initialization separately from steady-state work.", "memory"),
+      setting("ReservedConcurrentExecutions", "Set a cap that leaves headroom for the downstream service and other functions.", "A cap protects dependencies but creates backpressure or throttling. It is not equivalent to provisioned concurrency, which addresses pre-initialized execution capacity.", "concurrency"),
+      setting("FunctionResponseTypes", "Use ReportBatchItemFailures on the SQS mapping when the handler returns failed message IDs.", "The response and mapping setting must agree. With FIFO queues, stop after the first failure and report failed plus unprocessed records to preserve ordering.", "batch"),
+    ],
+    security: [
+      note("Keep the role scoped to the worker", "A thumbnail worker might need read access to an input prefix and write access to a separate output prefix. Review those resource permissions independently; broad storage administration is not required merely to process objects.", "role"),
+      note("Review credentials without exposing them", "Use the runtime's role credentials through the SDK provider chain. During access-denied diagnosis, log the operation and resource identifier rather than access keys, tokens or complete customer payloads.", "role"),
+    ],
+    example: {
+      title: "The response contract for one failed SQS record",
+      language: 'json',
+      code: '{\n  "batchItemFailures": [\n    {"itemIdentifier": "message-id-that-failed"}\n  ]\n}',
+      explanation: "This is a handler return value, not an AWS deployment document. In a standard-queue batch where other records succeeded, return only the failed SQS messageId and enable ReportBatchItemFailures on the mapping. A business order ID is not the itemIdentifier.",
+      checks: ["Successful records are acknowledged by the mapping while the failed record becomes eligible for another attempt; the at-least-once contract still requires duplicate-safe processing.", "An exception escaping the handler fails the entire batch; test that path separately from the returned failure list."],
+      sourceIds: ['batch'],
+    },
+    troubleshooting: [
+      fault("Several successful records run again", "The handler failed the complete batch or the mapping did not enable partial responses.", "Compare the returned payload, uncaught exceptions and the mapping's FunctionResponseTypes.", "Align both sides of the contract and make each durable side effect duplicate-safe.", "batch"),
+      fault("Backlog grows although invocations succeed", "The configured concurrency cannot keep up with arrival rate, or executions spend most of their time waiting.", "Compare arrival rate, processing duration, queue age and the function's concurrency cap.", "Reduce unnecessary work or raise capacity only within a verified downstream budget.", "concurrency"),
+      fault("The function runs but cannot write its result", "The execution role lacks the exact resource action; invocation permission is unrelated.", "Inspect the failing API action, target resource and effective execution role.", "Grant the necessary scoped permission and repeat an intentionally forbidden operation as a negative check.", "role"),
+    ],
+    pitfalls: [
+      note("Successful code is not successful delivery", "A green invocation metric can coexist with swallowed per-record errors. Establish a business completion metric or durable status record so queue acknowledgements can be compared with actual completed work.", "batch"),
+      note("A tuning result is workload-specific", "A memory setting measured on tiny cached inputs may perform poorly with large cold inputs. Preserve the test distribution and record tail latency as well as its average.", "memory"),
+    ],
+    sources: [
+      source('mapping', 'Lambda event source mappings and delivery contracts', 'https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventsourcemapping.html'),
+      source('memory', 'Lambda memory and CPU allocation', 'https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html'),
+      source('role', 'Lambda execution role and permissions', 'https://docs.aws.amazon.com/lambda/latest/dg/lambda-intro-execution-role.html'),
+      source('batch', 'Lambda SQS partial batch failure handling', 'https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-errorhandling.html'),
+      source('concurrency', 'Reserved concurrency for Lambda Event Functions', 'https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html'),
+    ],
+  },
+  {
+    serviceId: 'sqs',
+    operatingModel: [
+      note("Choose the queue contract first", "Standard queues can deliver more than once and out of order. FIFO queues order messages within a message group; independent groups can advance concurrently. Neither choice makes a multi-system business transaction automatically exactly once.", "standard", "fifo"),
+      note("Separate waiting from processing", "Long polling waits for a message before returning an empty receive response. Visibility controls when an already received message can be delivered again. Increasing the polling wait does not give a slow worker more processing time.", "polling", "fifo"),
+      note("Treat dead-lettering as an operational branch", "A redrive policy moves repeatedly received messages to a DLQ. The queue isolates failures, but a person or recovery process still needs to classify them, repair the cause and replay only safe work.", "dlq"),
+    ],
+    setup: [
+      note("Define message identity and ordering", "Write an envelope containing a stable business operation ID, schema version and the smallest useful payload. Choose FIFO only when an actual sequence must be preserved, then define a message group from that ordering boundary.", "standard", "fifo"),
+      note("Plan receive, commit and delete", "Commit the business change and completion record atomically when they share a transactional store. For an external invoice or payment API, use its idempotency key or reconcile uncertain outcomes before retrying. Delete only after completion, using the current receive operation's receipt handle.", "standard"),
+      note("Tune the idle-worker path", "Enable long polling and ensure the HTTP client waits longer than the selected polling duration. Observe empty receives under quiet traffic so connection settings are not mistaken for a lack of messages.", "polling"),
+      note("Exercise the poison-message path", "Create a separate, accessible DLQ, choose a retry budget and test a permanently invalid payload. For standard queues, retain DLQ messages longer than the source retention so investigation time is not accidentally exhausted.", "dlq"),
+    ],
+    configuration: [
+      setting("MessageGroupId", "For FIFO work, choose an identifier for the entity whose operations require ordering.", "One global group simplifies ordering but serializes that workload. Many groups improve parallelism only when operations from different groups can safely overlap.", "fifo"),
+      setting("ReceiveMessageWaitTimeSeconds", "Use a nonzero long-poll wait for ordinary background consumers and align the client's read timeout.", "A receive returns as soon as a message is available; the setting primarily avoids empty polls rather than intentionally delaying available work.", "polling"),
+      setting("RedrivePolicy.maxReceiveCount", "Allow enough attempts for plausible transient failures and route persistent failures for inspection.", "Too small a budget ejects recoverable work; too large a budget consumes resources repeatedly. A FIFO DLQ can interrupt strict end-to-end sequence expectations.", "dlq"),
+    ],
+    security: [
+      note("Separate senders and consumers", "Grant a producer SendMessage and a consumer the needed receive/delete/change-visibility actions on the intended queue. Review queue resource policies for accidental public or cross-account access instead of relying only on role names.", "security"),
+      note("Protect both payload paths", "Use transport encryption and the chosen queue encryption controls, with the required KMS permissions when applicable. Treat message bodies and DLQs as sensitive data stores; troubleshooting access should not imply permission to publish production jobs.", "security"),
+    ],
+    example: {
+      title: "A domain envelope for a duplicate-safe invoice job",
+      language: 'json',
+      code: '{\n  "schemaVersion": 1,\n  "operationId": "invoice:order-1042:v1",\n  "orderId": "order-1042",\n  "action": "issue-invoice"\n}',
+      explanation: "This is an application message body, not an SQS API request or a complete idempotency implementation. Use operationId in a completion record committed atomically with the invoice, or as the external provider's idempotency key with recovery for uncertain outcomes. A FIFO producer also supplies MessageGroupId and its deduplication strategy outside this body.",
+      checks: ["The implemented atomic/idempotent invoice path handles duplicate and overlapping attempts without creating another invoice.", "Crashes before completion recording and before queue deletion are tested separately; a completion lookup alone cannot repair an unrecorded external side effect."],
+      sourceIds: ['standard', 'fifo'],
+    },
+    troubleshooting: [
+      fault("Idle consumers make many empty requests", "Short polling or a client timeout shorter than the polling wait is defeating the intended receive strategy.", "Inspect WaitTimeSeconds, queue defaults and client read timeouts together.", "Use coherent long-poll and HTTP timeouts, then compare empty receives under the same traffic.", "polling"),
+      fault("Only one FIFO customer seems to block", "A message in that group remains in flight or repeatedly fails.", "Inspect message group IDs, visibility state and the failing operation's evidence.", "Repair or deliberately isolate the blocking operation; do not randomize group IDs to hide an ordering defect.", "fifo"),
+      fault("DLQ evidence disappears sooner than expected", "Standard-queue retention still counts from the original enqueue time.", "Compare source age, source retention and DLQ retention rather than treating the move as a fresh arrival.", "Increase the investigation window appropriately and alert when messages first reach the DLQ.", "dlq"),
+    ],
+    pitfalls: [
+      note("FIFO deduplication is not a business ledger", "Producer deduplication does not atomically commit your database update or external payment with queue deletion. Preserve an application-level idempotency decision around the side effect that matters. Standard queues can redeliver even within visibility timeout, so that timeout is not an exclusive lock.", "fifo", "visibility"),
+      note("Queue depth is only one signal", "A shallow queue can contain a very old stuck message; a large queue may be draining normally. Interpret backlog, age and successful completion rate together before changing worker capacity.", "dlq"),
+    ],
+    sources: [
+      source('standard', 'SQS standard queue delivery semantics', 'https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html'),
+      source('fifo', 'SQS FIFO message groups and delivery logic', 'https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-understanding-logic.html'),
+      source('polling', 'SQS short and long polling', 'https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-short-and-long-polling.html'),
+      source('dlq', 'SQS dead-letter queue retention and policies', 'https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html'),
+      source('security', 'SQS least privilege and encryption practices', 'https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-security-best-practices.html'),
+      source('visibility', 'SQS visibility timeout and duplicate delivery', 'https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html'),
+    ],
+  },
+  {
+    serviceId: 'dynamodb',
+    operatingModel: [
+      note("The key is part of the application API", "Model a small set of concrete reads and writes before choosing keys. A secondary index creates another access path with its own projection, storage and write demand; it does not make every arbitrary filter an efficient query.", "indexes"),
+      note("Choose freshness per read path", "Table and local-secondary-index reads can request strong consistency. Global-secondary-index reads are eventually consistent, so an immediate lookup through a GSI can miss a write that already succeeded in the base table.", "consistency"),
+      note("Use atomic operations at the correct boundary", "A conditional write checks the current item's condition together with its update. A transaction groups supported operations across items. A preceding read followed by an unconditional write does not provide the same concurrency protection.", "conditions", "transactions"),
+    ],
+    setup: [
+      note("Make an access-pattern worksheet", "For each screen or worker, name the partition key, any sort-key range and expected result size. Include the busiest tenant and pagination path, then choose an index only for a demonstrated additional access pattern.", "indexes"),
+      note("Separate authoritative and discovery reads", "Use the base key when a newly written record must be read immediately with strong consistency. Use an index for discovery when the caller can tolerate propagation delay and safely handle a temporarily missing result.", "consistency"),
+      note("Protect conflicting writers", "Add a version or expected-state condition to updates that must not overwrite another actor. Define what the application does after a condition fails: refresh, reject the request or calculate a new operation.", "conditions"),
+      note("Test the transaction failure contract", "For an order and its inventory reservation, list all writes that must commit together. Exercise a conflict and verify that the caller handles a canceled transaction without treating a partial client response as successful fulfillment.", "transactions"),
+    ],
+    configuration: [
+      setting("ConsistentRead", "Enable it only on supported reads whose correctness requires current base-table state.", "Strong reads consume more read capacity than eventual reads. They do not stop another writer changing an item immediately after the read.", "consistency"),
+      setting("Projection on a GSI", "Project the keys and attributes needed by the index query rather than copying every attribute automatically.", "Smaller projections reduce index storage and write work, but missing attributes may require an explicit base-table retrieval and additional application coordination.", "indexes"),
+      setting("ConditionExpression", "Express an expected version, state or nonexistence in the write itself.", "A failed condition is often an intended business conflict, not a transient service outage. Blind retries of the identical stale expectation cannot resolve it.", "conditions"),
+    ],
+    security: [
+      note("Scope both tables and index access", "Grant the application's needed DynamoDB actions against the actual table and relevant index resources. Test an index query separately from a direct item read; permission to use one path should not be assumed from the other.", "security"),
+      note("Enforce tenant ownership outside user-supplied keys", "Build keys from a trusted authenticated tenant context and apply suitable IAM conditions where the architecture supports them. Do not let a client choose another tenant's partition key merely because the API accepts a string.", "security"),
+    ],
+    example: {
+      title: "A conditional PutItem request for a unique operation record",
+      language: 'json',
+      code: '{\n  "TableName": "OperationLedger",\n  "Item": {\n    "pk": {"S": "invoice:order-1042"},\n    "status": {"S": "CLAIMED"}\n  },\n  "ConditionExpression": "attribute_not_exists(pk)"\n}',
+      explanation: "This low-level API-shaped example assumes a table whose only key is pk. Only one competing first write can create that key. CLAIMED is not proof the external side effect completed; a real workflow also needs ownership, recovery and final completion states.",
+      checks: ["The first request creates the item; another request for the same key receives a conditional failure.", "A worker crash after claiming is recoverable by a deliberately designed state transition rather than leaving the operation stuck forever."],
+      sourceIds: ['conditions'],
+    },
+    troubleshooting: [
+      fault("A successful write is absent from a search screen", "The screen reads an eventually consistent GSI.", "Compare a supported strongly consistent base-table read with the index lookup.", "Use the authoritative key for immediate confirmation or design the search experience for propagation delay.", "consistency", "indexes"),
+      fault("Updates fail with conditional-check errors", "The stored version or state differs from the client's expected value.", "Read the current item and compare the precise condition operands.", "Return a conflict or recompute from fresh state; do not turn off the condition to silence errors.", "conditions"),
+      fault("An index increases write throttling", "The index adds write work and its capacity or key distribution is insufficient.", "Inspect the index's capacity and traffic pattern separately from the base table.", "Reduce unnecessary projections, correct skew and size the selected capacity mode for indexed writes.", "indexes"),
+    ],
+    pitfalls: [
+      note("Transactions have a defined scope", "The transaction API groups operations in the same account and Region. Do not present it as an atomic commit spanning an external payment system or automatically spanning every global-table replica.", "transactions"),
+      note("A consistency choice is not a lock", "Read-committed results avoid uncommitted data, but a subsequent update still needs a condition or transaction when concurrent actors can invalidate the read. Keep that decision in the write contract.", "consistency", "conditions"),
+    ],
+    sources: [
+      source('consistency', 'DynamoDB read consistency by resource type', 'https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html'),
+      source('conditions', 'DynamoDB conditional write expressions', 'https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html'),
+      source('indexes', 'DynamoDB global secondary index behavior', 'https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html'),
+      source('transactions', 'DynamoDB transaction semantics and scope', 'https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html'),
+      source('security', 'DynamoDB IAM actions, resources and conditions', 'https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/security_iam_service-with-iam.html'),
+    ],
+  },
+  {
+    serviceId: 'eventbridge',
+    operatingModel: [
+      note("Scope this guide to rule-based buses", "The examples here use EventBridge rule-based Custom Event Bus - Classic behavior. Current documentation also describes Custom Event Bus subscribers with different configuration contracts; do not copy rule target settings into that subscriber model.", "targets"),
+      note("Publishing and matching are different results", "A PutEvents response describes ingestion results for individual entries. It does not report whether a rule matched or whether a consumer finished its work. Give the producer, routing layer and consumer separate operational signals.", "publish", "patterns"),
+      note("The event envelope is a public contract", "A rule examines fields such as source, detail-type and nested detail values. A producer changing a field's case, type or nesting can silently stop matching a previously valid rule even while publishing succeeds.", "patterns"),
+    ],
+    setup: [
+      note("Define the domain event", "Describe a completed fact such as OrderAccepted, give it a schema version and retain an application correlation ID. Keep the event distinct from a direct command so multiple consumers can interpret it without sharing internal handler details.", "patterns"),
+      note("Test positive and negative matching", "Create representative event envelopes and test the pattern before attaching production targets. Include an irrelevant event, a missing field and a differently typed value to verify that the routing boundary is intentional.", "patterns"),
+      note("Inspect each publication result", "Handle per-entry failures in a multi-entry PutEvents request. Retry only failed entries with a duplicate-safe producer contract, and verify the exact bus name or ARN; an HTTP success alone is insufficient delivery evidence.", "publish"),
+      note("Authorize and observe the target", "Choose the supported target permission mechanism, then confirm an event reaches that resource. Inspect routing and target processing separately, and configure a recovery path for delivery failures rather than assuming target execution is synchronous.", "targets", "permissions"),
+    ],
+    configuration: [
+      setting("EventPattern", "Constrain source and detail-type plus the domain fields needed by the consumer.", "An overly broad pattern increases unwanted work; an overly narrow pattern makes harmless producer changes break delivery. Keep a set of contract examples with the pattern.", "patterns"),
+      setting("Target input", "Choose the complete envelope, a selected input path or an input transformer according to the consumer contract.", "Transformations reduce coupling to the transport envelope but can discard identifiers needed for support and replay. Verify the resulting payload, not only the original event.", "targets"),
+      setting("Target RoleArn or resource policy", "Use the authorization method supported by the specific target.", "Current docs allow an execution role or resource policy for Lambda, SNS and SQS targets; CloudWatch Logs targets use resource policies and must not specify RoleArn.", "permissions"),
+    ],
+    security: [
+      note("Constrain a resource-policy grant", "When granting EventBridge access through a target resource policy, scope the service principal and source rule where that target supports the relevant condition. A generic grant to all rules is broader than one application route.", "permissions"),
+      note("Review the transformed payload", "Treat rules and input transformations as data-distribution controls. Keep credentials and unnecessary personal data out of events; a consumer added later should not automatically receive information it has no reason to process.", "targets"),
+    ],
+    example: {
+      title: "A rule pattern for accepted wholesale orders",
+      language: 'json',
+      code: '{\n  "source": ["com.example.orders"],\n  "detail-type": ["OrderAccepted"],\n  "detail": {\n    "schemaVersion": [1],\n    "channel": ["wholesale"]\n  }\n}',
+      explanation: "This JSON is an event pattern, not the event being published. The actual event has scalar envelope values and a detail object. A producer using the string \"1\" for schemaVersion does not satisfy this numeric-value contract.",
+      checks: ["A wholesale OrderAccepted event with numeric schemaVersion 1 matches.", "A retail event, another detail-type or a missing required field does not reach this rule's target."],
+      sourceIds: ['patterns'],
+    },
+    troubleshooting: [
+      fault("PutEvents succeeds but nothing runs", "No rule matches, the wrong bus was selected or the event was sent to a nonexistent bus.", "Inspect each entry result, confirm the bus exists and replay the envelope against the pattern test.", "Correct the bus and contract; do not interpret ingestion acknowledgement as end-to-end success.", "publish", "patterns"),
+      fault("A matching rule cannot deliver", "Target authorization or its configured role is incorrect.", "Inspect the target type, RoleArn, policy and delivery failure evidence.", "Repair the minimum supported permission path for that target and retest one controlled event.", "permissions"),
+      fault("The consumer receives an unexpected body", "Target input selection or transformation removed or reshaped fields.", "Compare the saved target input configuration with the event the consumer logged.", "Version the consumer contract and preserve correlation identifiers through transformations.", "targets"),
+    ],
+    pitfalls: [
+      note("A rule is not a workflow", "Independent target deliveries do not express an ordered business transaction or compensation logic. For approval, payment and fulfillment sequencing, consider an explicit workflow while retaining events for completed facts.", "targets"),
+      note("Do not retry every accepted event", "Repeating an entire partially failed publication can duplicate entries that already succeeded. Track result positions and make consumer business operations safe to repeat, even when producers are careful.", "publish"),
+    ],
+    sources: [
+      source('patterns', 'EventBridge event pattern matching', 'https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html'),
+      source('publish', 'PutEvents entry results and failure handling', 'https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-putevents.html'),
+      source('targets', 'EventBridge targets and Classic-versus-subscriber scope', 'https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-targets.html'),
+      source('permissions', 'EventBridge target authorization mechanisms', 'https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-use-resource-based.html'),
+    ],
+  },
+  {
+    serviceId: 'appsync',
+    operatingModel: [
+      note("GraphQL fields cause backend work", "A resolver translates a selected field into a data-source operation and translates the result back. A unit resolver has one data source; a pipeline composes AppSync functions, making intermediate data and authorization decisions explicit.", "resolvers"),
+      note("Authentication and ownership are separate", "The configured API authorization mode identifies an accepted caller or access mechanism. The resolver still needs to enforce which tenant's object that caller may read or mutate; a valid token does not prove ownership of an arbitrary supplied ID.", "auth"),
+      note("Subscriptions follow mutation results", "For AppSync GraphQL, schema-linked mutations drive subscription updates. The mutation's selected fields affect what can be delivered to subscribers. AppSync Events is a separate PubSub programming model, so its behavior should not be assumed here.", "subscriptions"),
+    ],
+    setup: [
+      note("Design the schema around a real query", "Start with a client screen and list the objects, fields and pagination it actually needs. Identify which resolver owns each nontrivial field and estimate the downstream calls for one item and for a full page.", "resolvers"),
+      note("Choose an intentional authorization mode", "Select Cognito, OIDC, IAM or the other supported modes according to the clients. Use API keys only for an intentionally unauthenticated API boundary; do not use possession of a shared key as per-user authorization.", "auth"),
+      note("Connect a narrowly scoped data source", "For a DynamoDB-backed query, map GraphQL arguments to the exact key shape and give the data-source role only the needed operations. Handle a missing item and a denied item deliberately rather than leaking backend error details.", "tutorial", "auth"),
+      note("Exercise two users and a subscriber", "Test that one user cannot fetch another user's object by changing an ID. Then run a mutation while a permitted subscriber is connected and compare its requested fields with the fields included in the mutation response.", "auth", "subscriptions"),
+    ],
+    configuration: [
+      setting("Unit versus pipeline resolver", "Use a unit resolver for one direct operation; use a pipeline when ordered validation or multiple reusable steps clarify the request.", "A pipeline adds intermediate contracts to maintain. More steps do not fix an inefficient data model or automatically turn the operations into a database transaction.", "resolvers"),
+      setting("APPSYNC_JS runtime", "Write against the supported AppSync JavaScript runtime and utilities.", "It is not a general Node.js process. Do not assume arbitrary npm modules, operating-system APIs or every JavaScript feature are available inside a resolver.", "resolvers"),
+      setting("Default and additional authorization modes", "Apply the chosen modes consistently to the schema and test protected fields using each allowed client type.", "Adding a second mode changes the access surface. A field intended for one authenticated audience should not become readable through a less restrictive mode.", "auth"),
+    ],
+    security: [
+      note("Bind ownership to trusted identity", "Use the resolver's authenticated identity context to determine tenant scope and verify record ownership. A client-supplied owner field can be validated, but must not be the sole source of authority.", "auth"),
+      note("Separate API and data-source permissions", "The caller's right to invoke a field and the AppSync role's right to read DynamoDB are different checks. Diagnose each boundary independently and avoid granting table administration to resolve a failed item query.", "auth", "tutorial"),
+    ],
+    example: {
+      title: "A minimal DynamoDB GetItem resolver body",
+      language: 'javascript',
+      code: "import { util } from '@aws-appsync/utils';\n\nexport function request(ctx) {\n  return {\n    operation: 'GetItem',\n    key: util.dynamodb.toMapValues({ id: ctx.args.id })\n  };\n}\n\nexport function response(ctx) {\n  if (ctx.error) util.error(ctx.error.message, ctx.error.type);\n  return ctx.result;\n}",
+      explanation: "This illustrates the data-source mapping for a table keyed only by id. Reads default to eventual consistency; set consistentRead: true when immediate base-table freshness is required. Ownership checks are omitted and must be added before returning protected objects. Attach it to a compatible schema field and DynamoDB data source.",
+      checks: ["An existing ID maps to the expected GraphQL object; a nonexistent ID follows the schema's nullable/missing-result contract.", "Add a separate negative authorization test for a valid caller asking for an object they do not own."],
+      sourceIds: ['tutorial', 'auth', 'getitem'],
+    },
+    troubleshooting: [
+      fault("GraphQL returns null with an errors array", "The resolver failed, returned an incompatible shape or violated the field's nullability contract.", "Read the field path and resolver error, then compare the schema with the data-source response.", "Correct the mapping and error handling rather than treating HTTP success as a successful GraphQL operation.", "resolvers", "tutorial"),
+      fault("A subscriber misses expected fields", "The mutation response selection omitted data requested by the subscription.", "Compare both selection sets and the subscription's arguments.", "Return the required fields from the triggering mutation and test the exact client selections.", "subscriptions"),
+      fault("One client type is unexpectedly unauthorized", "The API or field authorization mode does not accept that client's credentials.", "Inspect default/additional modes, field directives and the actual token or signing method without logging secrets.", "Align schema access with the intended client and retain negative tests for other modes.", "auth"),
+    ],
+    pitfalls: [
+      note("A GraphQL request is not a cost unit", "Nested field resolution can multiply downstream requests as a result set grows. Measure backend operations per returned page and evaluate appropriate batching or a different access pattern before merely increasing timeouts.", "resolvers"),
+      note("Subscription transport does not replace state retrieval", "After reconnecting, a client should reconcile its current state using an authorized query rather than assuming a live connection proves it saw every relevant historical business update.", "subscriptions"),
+    ],
+    sources: [
+      source('resolvers', 'AppSync JavaScript unit and pipeline resolvers', 'https://docs.aws.amazon.com/appsync/latest/devguide/resolver-reference-overview-js.html'),
+      source('auth', 'AppSync API and field authorization', 'https://docs.aws.amazon.com/appsync/latest/devguide/security-authz.html'),
+      source('subscriptions', 'AppSync GraphQL subscriptions and mutation selections', 'https://docs.aws.amazon.com/appsync/latest/devguide/aws-appsync-real-time-data.html'),
+      source('tutorial', 'AppSync DynamoDB JavaScript resolver contracts', 'https://docs.aws.amazon.com/appsync/latest/devguide/tutorial-dynamodb-resolvers-js.html'),
+      source('getitem', 'AppSync GetItem request fields and consistency default', 'https://docs.aws.amazon.com/appsync/latest/devguide/js-aws-appsync-resolver-reference-dynamodb-getitem.html'),
+    ],
+  },
+  {
+    serviceId: 'sns',
+    operatingModel: [
+      note("Fan-out creates separate delivery paths", "A topic distributes a published notification to its subscriptions. A queue for billing and a queue for analytics can progress independently; they are not competing consumers of one shared queue. Track each subscription's delivery health.", "fanout"),
+      note("Filtering belongs to the subscription", "A filter can inspect message attributes or a JSON message body, depending on FilterPolicyScope. Two subscriptions can accept different subsets from the same topic without the producer selecting individual consumer addresses.", "filter"),
+      note("Delivery failure is not processing failure", "An SNS subscription DLQ captures notifications SNS could not deliver. Once delivery to an SQS queue succeeds, later worker failures are managed through that queue's processing and redrive contract, not the SNS subscription's DLQ.", "dlq"),
+    ],
+    setup: [
+      note("Give each independent workload its own queue", "For billing and reporting, create separate SQS subscriptions so a slow reporting consumer cannot remove billing's copy. Establish subscription ownership and the evidence used to distinguish publishing, delivery and processing failures.", "fanout"),
+      note("Write the receiving queue policy", "Permit the topic to send to the intended queue and constrain the source topic. A subscription declaration by itself does not grant SNS permission to write into a queue controlled by another policy boundary.", "fanout"),
+      note("Choose the payload contract", "Decide whether consumers need the SNS envelope or raw message delivery. Test the exact SQS message body your parser receives; changing raw delivery later is an interface change, not only a cosmetic setting.", "raw"),
+      note("Test routing and undeliverable notifications", "Publish accepted and rejected examples for each filter, then deliberately remove a target permission in a safe environment. Confirm that the subscription recovery queue receives undeliverable notifications and has an assigned investigation owner.", "filter", "dlq"),
+    ],
+    configuration: [
+      setting("FilterPolicyScope", "Choose MessageAttributes or MessageBody according to where the producer's routing information lives.", "A valid filter with the wrong scope can exclude every intended event. Body filtering expects a well-formed JSON object; retain a sample payload with the configuration.", "filter"),
+      setting("RawMessageDelivery", "Enable raw delivery when an SQS consumer should receive the published body directly.", "The consumer loses the usual SNS envelope. Check the protocol-specific treatment and limits for message attributes before assuming all metadata travels unchanged.", "raw"),
+      setting("Subscription RedrivePolicy", "Attach an appropriately typed and authorized SQS DLQ to the subscription.", "It protects the delivery boundary only. It does not replay automatically into your business workflow or diagnose worker exceptions after successful queue delivery.", "dlq"),
+    ],
+    security: [
+      note("Constrain fan-out destinations", "Scope queue SendMessage permission to the expected SNS topic rather than every SNS publisher. Review cross-account subscription and queue ownership together so a new subscription cannot bypass an intended data-sharing boundary.", "fanout"),
+      note("Authorize encrypted recovery paths", "An encrypted subscription DLQ needs compatible KMS permissions in addition to queue permission. Include the recovery queue in access reviews and avoid giving incident responders unrestricted publishing rights merely to inspect failed notifications.", "dlq"),
+    ],
+    example: {
+      title: "Subscription filter for a billing consumer",
+      language: 'json',
+      code: '{\n  "eventType": ["OrderAccepted"],\n  "paymentMethod": ["invoice"]\n}',
+      explanation: "This is the FilterPolicy value. With FilterPolicyScope set to MessageBody, the published JSON body must contain matching fields. With MessageAttributes scope, supply the corresponding publish attributes instead. Allow filter-policy changes to propagate before judging matching and nonmatching test deliveries.",
+      checks: ["An OrderAccepted invoice event reaches the billing queue while a card-payment event does not.", "Another unfiltered subscription still receives its own copy; this policy changes only the configured subscription."],
+      sourceIds: ['filter', 'filter-policy'],
+    },
+    troubleshooting: [
+      fault("The topic accepts messages but one queue stays empty", "The filter excludes the message or the queue policy denies delivery.", "Compare filter scope and actual payload, then inspect the target queue policy and delivery failure evidence.", "Correct only the failing contract or grant and repeat a uniquely identified sample.", "filter", "fanout"),
+      fault("The consumer's JSON parser suddenly fails", "Raw delivery changed the body from an SNS envelope to the original payload, or vice versa.", "Capture a sanitized body from the queue and compare the expected nesting.", "Version the payload contract and update the parser deliberately before switching delivery mode.", "raw"),
+      fault("Failed deliveries do not appear in the DLQ", "The subscription has no redrive policy or SNS cannot write to the recovery queue.", "Inspect subscription attributes, queue permissions and any KMS policy.", "Authorize the complete DLQ path and exercise a delivery failure again.", "dlq"),
+    ],
+    pitfalls: [
+      note("Filtering is not consumer authorization", "A routing filter reduces which messages a subscriber receives, but an authorized publisher may still control those field values. Protect topic publishing and queue access independently of the filter expression.", "filter", "fanout"),
+      note("Do not confuse delivery with business acceptance", "A successful topic publish does not prove an email was read or an invoice was created. Design an application-level acknowledgement only when the business process actually requires one.", "dlq"),
+    ],
+    sources: [
+      source('filter', 'SNS subscription message filtering and scope', 'https://docs.aws.amazon.com/sns/latest/dg/sns-message-filtering.html'),
+      source('raw', 'SNS raw message delivery contracts', 'https://docs.aws.amazon.com/sns/latest/dg/sns-large-payload-raw-message-delivery.html'),
+      source('dlq', 'SNS subscription dead-letter queues', 'https://docs.aws.amazon.com/sns/latest/dg/sns-dead-letter-queues.html'),
+      source('fanout', 'SNS-to-SQS subscriptions and queue authorization', 'https://docs.aws.amazon.com/sns/latest/dg/subscribe-sqs-queue-to-sns-topic.html'),
+      source('filter-policy', 'SNS filter matching and propagation', 'https://docs.aws.amazon.com/sns/latest/dg/sns-subscription-filter-policies.html'),
+    ],
+  },
+  {
+    serviceId: 'step-functions',
+    operatingModel: [
+      note("Choose workflow semantics deliberately", "Standard and Express are different execution products, not merely price settings. Standard maintains durable execution history; Express fits shorter, higher-volume work. Asynchronous Express can execute more than once, while synchronous Express has at-most-once execution semantics.", "types"),
+      note("A task can wait for different things", "Request-response waits for the called API response. A supported .sync integration waits for its job to finish, and a callback integration waits for a returned task token. An accepted asynchronous job is not necessarily finished work.", "integration"),
+      note("Retry is part of the business design", "A Retry rule can repeat a task after an error; Catch chooses a recovery transition after retry handling. Neither automatically reverses a successful external action. Model compensation explicitly when completed steps must be unwound.", "errors"),
+    ],
+    setup: [
+      note("Draw state and side-effect boundaries", "List inputs, outputs and irreversible actions for an order workflow. Decide which steps can retry safely, which require a durable operation identifier and which need an explicit refund or reservation-release action.", "errors", "tasks"),
+      note("Select Standard or Express before creation", "Compare required duration, execution-history access and integration support. The workflow type cannot be changed in place; switching later means deploying and routing to a different state machine.", "types"),
+      note("Pick the integration completion signal", "For a container job, choose a supported job-wait integration when later steps depend on completion. For a human approval, evaluate callback support and protect the token as a capability rather than an ordinary tracking ID.", "integration"),
+      note("Exercise each failure transition", "Inject a transient failure, a permanent business rejection and a timeout. Read the execution's actual input/output path, then confirm that catch states receive the expected error object and that retries do not duplicate external effects.", "errors"),
+    ],
+    configuration: [
+      setting("Retry.ErrorEquals and backoff", "Retry named transient failures with a bounded policy and appropriate backoff.", "Broad retries can repeat invalid business requests or irreversible side effects. Check retry order and the resulting total execution time, not only the initial delay.", "errors"),
+      setting("TimeoutSeconds and HeartbeatSeconds", "Use task timeouts and supported heartbeat contracts to bound waits.", "A missing heartbeat can end a task even when the worker is still active. The worker must coordinate cancellation and late completion so the business result is reconciled.", "tasks"),
+      setting("QueryLanguage and payload fields", "Keep JSONPath Parameters/ResultPath or JSONata Arguments/Output consistent with the selected state language.", "Examples using the two languages are not mechanically interchangeable. Validate state input shapes before debugging the downstream service.", "tasks"),
+    ],
+    security: [
+      note("Scope the execution role", "Authorize only the services and resource targets the state machine needs. Treat a dynamically selected target as a permission-design decision; a configurable resource name should not grant the workflow unlimited account-wide actions.", "integration"),
+      note("Protect callback authority", "Return task tokens only to the trusted worker that must complete that task. Avoid putting them in public URLs or ordinary business logs, and define what happens when the workflow times out before a worker responds.", "integration"),
+    ],
+    example: {
+      title: "A JSONPath task with bounded transient retries",
+      language: 'json',
+      code: '{\n  "StartAt": "CheckOrder",\n  "States": {\n    "CheckOrder": {\n      "Type": "Task",\n      "Resource": "arn:aws:states:::lambda:invoke",\n      "Parameters": {\n        "FunctionName": "arn:aws:lambda:us-east-1:111122223333:function:check-order",\n        "Payload.$": "$"\n      },\n      "Retry": [{\n        "ErrorEquals": ["Lambda.ServiceException"],\n        "IntervalSeconds": 2,\n        "MaxAttempts": 3,\n        "BackoffRate": 2\n      }],\n      "End": true\n    }\n  }\n}',
+      explanation: "This ASL uses default JSONPath and a placeholder function ARN. MaxAttempts: 3 allows three retries after the initial call. The execution role needs lambda:InvokeFunction. Success returns the optimized integration envelope with the function result under Payload. Raising an exception fails the task; returning JSON describing a rejection does not, and would need a Choice state.",
+      checks: ["A matching Lambda.ServiceException follows the bounded retry schedule; side effects remain duplicate-safe.", "A raised business exception outside ErrorEquals fails without retry; a returned rejection payload is recognized separately by application workflow logic."],
+      sourceIds: ['tasks', 'errors', 'lambda-integration'],
+    },
+    troubleshooting: [
+      fault("The workflow advances before a job finishes", "The task uses request-response instead of a supported completion-wait pattern.", "Inspect Resource and the downstream API's response semantics.", "Use the appropriate integration pattern or an explicit status-check workflow.", "integration"),
+      fault("An apparently caught error still ends execution", "The error is outside the matching catcher or belongs to a terminal/runtime category with different handling.", "Read the exact error name and the ordered Retry/Catch definitions.", "Correct the specific error and data-shape handling; do not assume States.ALL covers every failure.", "errors"),
+      fault("A callback arrives but the task no longer exists", "The wait timed out or the worker used the wrong or expired task token.", "Compare the execution timeline with the token's task lifecycle.", "Reconcile the late business result and make the worker respect the task's completion window.", "integration", "tasks"),
+    ],
+    pitfalls: [
+      note("Exactly-once workflow semantics have limits", "Standard's execution model does not make arbitrary external systems participate in an atomic transaction. Explicit retries and ambiguous external responses still deserve idempotency or reconciliation at the side-effect boundary.", "types", "errors"),
+      note("History is a debugging asset and a data surface", "Pass identifiers and necessary state rather than entire sensitive documents through every step. Define who can inspect execution evidence and keep payload transformations understandable to an incident responder.", "tasks"),
+    ],
+    sources: [
+      source('types', 'Step Functions Standard and Express workflow semantics', 'https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html'),
+      source('errors', 'Step Functions Retry, Catch and error categories', 'https://docs.aws.amazon.com/step-functions/latest/dg/concepts-error-handling.html'),
+      source('integration', 'Step Functions request, job and callback integrations', 'https://docs.aws.amazon.com/step-functions/latest/dg/connect-to-resource.html'),
+      source('tasks', 'Step Functions Task fields and query languages', 'https://docs.aws.amazon.com/step-functions/latest/dg/state-task.html'),
+      source('lambda-integration', 'Step Functions optimized Lambda integration results and failures', 'https://docs.aws.amazon.com/step-functions/latest/dg/connect-lambda.html'),
+    ],
+  },
+  {
+    serviceId: 'ec2',
+    operatingModel: [
+      note("The instance is a lifecycle boundary", "A running instance means virtual compute is available, not that the application is healthy. Reboot, stop/start and termination have different effects on addresses, storage and billing, so recovery plans must name the operation they expect.", "lifecycle", "addressing"),
+      note("Network identity is not necessarily stable", "An instance receives private addressing in its subnet. An automatically assigned public IPv4 address can change after stop/start. Applications should use an intentional discovery or load-balancing mechanism instead of assuming that public address is permanent.", "addressing"),
+      note("Role credentials belong to the workload", "An instance profile supplies an IAM role to EC2 so supported SDK providers can obtain temporary credentials. The role's trust policy and its allowed AWS actions are separate controls; neither replaces host operating-system security.", "roles"),
+    ],
+    setup: [
+      note("Define a replaceable instance", "Record the image, instance configuration, network placement and application bootstrap inputs. Test creating a fresh instance from that definition instead of relying on undocumented changes made interactively to a long-lived machine.", "metadata"),
+      note("Design ingress and dependency paths", "Decide whether the instance needs public addressing or only private access through another entry point. Verify DNS, routes and security-group rules from the actual caller and toward every required dependency.", "addressing"),
+      note("Attach a least-privilege instance profile", "Create the role and profile deliberately, then let the application use the normal SDK credential chain. Confirm the effective caller without embedding access keys in the machine image or startup script.", "roles"),
+      note("Rehearse state changes", "Observe an application's reconnect and storage behavior after reboot and stop/start, then test replacement in a safe environment. Identify retained resources that remain billable after compute stops, including storage and allocated network resources.", "lifecycle"),
+    ],
+    configuration: [
+      setting("MetadataOptions.HttpTokens", "Require IMDSv2 after verifying that software and SDKs on the host support its session-token flow.", "Older scripts using unauthenticated metadata requests can fail. Fix those clients rather than restoring unrestricted metadata access as a permanent workaround.", "imds"),
+      setting("Public versus private addressing", "Choose addresses for the intended traffic path and put stable application entry points behind an appropriate DNS/load-balancing design.", "A public address alone does not create a functioning route or open security-group access; private placement still needs a deliberate outbound path.", "addressing"),
+      setting("Instance profile role", "Attach a role containing only the AWS operations the host's application requires.", "Every sufficiently privileged process able to obtain those credentials can use the role. Separate workloads with different trust requirements instead of pooling powerful permissions.", "roles", "metadata"),
+    ],
+    security: [
+      note("Do not put secrets in user data", "User data is a bootstrap input that can be retrieved through metadata and administrative interfaces. Fetch needed secrets through an authorized runtime mechanism and keep startup logs free of credential values.", "metadata"),
+      note("Harden metadata and the host together", "IMDSv2 improves the metadata request contract but does not make a compromised host trustworthy. Restrict process privileges, review metadata reachability and keep application AWS permissions narrow enough to limit a host compromise.", "imds", "roles"),
+    ],
+    example: {
+      title: "A metadata-options fragment to review in a launch definition",
+      language: 'json',
+      code: '{\n  "MetadataOptions": {\n    "HttpEndpoint": "enabled",\n    "HttpTokens": "required"\n  }\n}',
+      explanation: "This is an EC2 API-shaped configuration fragment, not a complete launch request. It keeps metadata available for supported role credential providers while requiring the IMDSv2 token flow. Verify the appropriate nesting for the launch API or template you use.",
+      checks: ["The application's supported credential provider still obtains the intended instance-role credentials.", "A legacy metadata request without a token is rejected, and required bootstrap tools have been updated."],
+      sourceIds: ['imds', 'roles'],
+    },
+    troubleshooting: [
+      fault("The service became unreachable after stop/start", "A client retained an automatically assigned public address that changed.", "Compare the current network interface addressing with DNS and client configuration.", "Use the intended stable endpoint and refresh dependent configuration instead of treating the old public address as an identity.", "addressing"),
+      fault("The SDK reports missing credentials", "The instance profile is absent or the metadata client is incompatible with the required token flow.", "Inspect the attached role and SDK provider behavior without printing credentials.", "Attach the intended profile or update the metadata-capable client; do not install long-lived access keys as a shortcut.", "roles", "imds"),
+      fault("Costs continue while the instance is stopped", "Associated storage or network resources remain allocated.", "Inventory attached EBS volumes, snapshots and address allocations separately from instance running time.", "Retain or remove each resource according to its data and recovery purpose, not merely the compute state.", "lifecycle"),
+    ],
+    pitfalls: [
+      note("A reboot is not a replacement test", "A configuration can survive a reboot while still depending on manual setup that is absent from a new image. Test replacement as its own recovery scenario and document persistent data explicitly.", "lifecycle"),
+      note("A role does not isolate tenants inside one host", "IAM authorizes AWS API requests made with the role; it does not automatically distinguish two local applications using the same credentials. Use appropriate host and deployment isolation for untrusted workloads.", "roles"),
+    ],
+    sources: [
+      source('addressing', 'EC2 private and public addressing behavior', 'https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html'),
+      source('roles', 'EC2 instance profiles and temporary role credentials', 'https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html'),
+      source('metadata', 'EC2 instance metadata and user data', 'https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html'),
+      source('lifecycle', 'EC2 lifecycle states and associated charges', 'https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-lifecycle.html'),
+      source('imds', 'EC2 IMDSv2 request and token behavior', 'https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html'),
+    ],
+  },
+  {
+    serviceId: 'elastic-beanstalk',
+    operatingModel: [
+      note("Separate application, version and environment", "An application groups related deployments; an application version identifies deployable code; an environment runs a chosen version with configuration and resources. Diagnose a failed release against its environment and platform rather than the application name alone.", "concepts"),
+      note("Know which Beanstalk mode you use", "This handbook's deployment namespace example targets Beanstalk Standard on EC2. Current Beanstalk also has Cluster mode on EKS, with different resource and deployment settings. Standard configuration files are not a universal contract for both modes.", "concepts", "deployment"),
+      note("Deployment policy changes capacity and exposure", "All-at-once, rolling, additional-batch, immutable and traffic-splitting policies differ in how old and new instances overlap. Select a policy using capacity, health and rollback requirements rather than assuming every environment updates without reduced capacity.", "deployment"),
+    ],
+    setup: [
+      note("Make the release artifact identifiable", "Package a versioned application artifact and record the platform family it expects. Keep configuration decisions in a reviewed form so a new environment can reproduce the application rather than depend on remembered console changes.", "concepts"),
+      note("Prepare the Standard instance profile", "Create or select the EC2 instance profile required by the environment and verify its permissions. New accounts should not assume Beanstalk automatically creates the historical default EC2 role for them.", "profile"),
+      note("Externalize environment-specific settings", "Keep endpoints and ordinary settings in environment properties and use the supported secret-reference or runtime retrieval path for credentials. Read platform-specific rules for how the application receives those values.", "settings"),
+      note("Rehearse one bad deployment", "Choose the policy and health behavior, then deploy an intentionally failing build to a test environment. Observe available capacity, the mixed-version interval and rollback steps before selecting that policy for user-facing traffic.", "deployment"),
+    ],
+    configuration: [
+      setting("aws:elasticbeanstalk:command DeploymentPolicy", "For a Standard environment, choose a policy aligned with the acceptable release exposure and temporary capacity.", "Immutable and additional-capacity approaches can need extra resources. Rolling updates can serve old and new code simultaneously, so application contracts must tolerate that period.", "deployment"),
+      setting("Environment properties", "Use named settings for environment-specific application values and the appropriate platform access mechanism.", "A value being outside the source bundle does not automatically make it secret. Avoid leaking configuration through logs, diagnostics or broad environment-read permissions.", "settings"),
+      setting("Health and deployment timeout settings", "Allow realistic startup time while keeping failure detection meaningful.", "A loose health policy can admit a broken release; an unrealistically strict one can repeatedly reject a healthy application that needs initialization time.", "deployment"),
+    ],
+    security: [
+      note("Separate service management from application access", "Review the Beanstalk service role separately from the EC2 instance profile used by application instances. Grant the application its actual downstream actions without broadening the environment-management role to solve runtime access errors.", "profile"),
+      note("Control who can read configuration", "Environment values can appear in configuration interfaces or application diagnostics. Restrict administrative reads and use supported secret handling instead of placing database passwords directly into a versioned configuration file.", "settings"),
+    ],
+    example: {
+      title: "A Beanstalk Standard deployment-policy fragment",
+      language: 'yaml',
+      code: 'option_settings:\n  aws:elasticbeanstalk:command:\n    DeploymentPolicy: Immutable\n',
+      explanation: "This .ebextensions-style fragment requests Immutable for compatible Beanstalk Standard environments. Higher-precedence console or EB CLI option settings can override it, so inspect the effective configuration. It is not a Cluster-mode strategy or a complete resource and health configuration.",
+      checks: ["A test release uses the selected deployment policy and has enough temporary capacity to complete.", "A release that fails health checks leaves an understood recovery path; verify the actual environment events instead of assuming zero interruption."],
+      sourceIds: ['deployment'],
+    },
+    troubleshooting: [
+      fault("Environment creation fails around EC2 permissions", "A suitable instance profile does not exist or lacks required environment operations.", "Read the environment event and inspect the selected profile rather than only the service role.", "Create or correct the intended profile with the needed permissions, then retry the bounded setup.", "profile"),
+      fault("Some requests use old behavior during a release", "The selected rolling policy intentionally overlaps versions.", "Compare environment deployment events with instance/application version evidence.", "Make schema and API changes backward compatible or choose a release policy matching the required cutover.", "deployment"),
+      fault("The app starts locally but cannot find a setting", "The platform's environment-variable contract or property name differs from local assumptions.", "Inspect sanitized configuration names and the runtime startup mechanism.", "Use the platform's supported property access path and add a startup validation that omits secret values.", "settings"),
+    ],
+    pitfalls: [
+      note("A managed platform still needs release design", "Beanstalk coordinates resources and deployment mechanics, but it cannot infer whether a database migration is compatible with both old and new code. Plan irreversible schema changes independently of the rollout button.", "deployment"),
+      note("Do not silently mix Standard and Cluster instructions", "The deployment policy names may look familiar while option namespaces and infrastructure differ. Keep the environment mode in runbooks and evaluate Cluster-specific documentation before reusing a Standard recipe.", "concepts", "deployment"),
+    ],
+    sources: [
+      source('concepts', 'Beanstalk application concepts and Standard/Cluster modes', 'https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/concepts.html'),
+      source('deployment', 'Beanstalk deployment policies and mode-specific settings', 'https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/using-features.rolling-version-deploy.html'),
+      source('settings', 'Beanstalk environment and software properties', 'https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/environments-cfg-softwaresettings.html'),
+      source('profile', 'Beanstalk Standard EC2 instance profiles', 'https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/iam-instanceprofile.html'),
+    ],
+  },
+  {
+    serviceId: 'aurora',
+    operatingModel: [
+      note("Route connections by their purpose", "An Aurora cluster's writer endpoint targets the current writer. With replicas present, the reader endpoint distributes connections across them, not statements within an existing connection. Without replicas it connects to the writer and can accept writes, so the endpoint name is not a read-only permission boundary.", "endpoints", "reader"),
+      note("Readers provide scale and recovery candidates", "Aurora replicas serve read-only traffic and support availability. A read from a replica may trail a writer's update, so a workflow requiring immediate confirmation should choose its read path deliberately rather than rely on endpoint naming alone.", "replication"),
+      note("Serverless capacity still has boundaries", "Aurora serverless instances scale within a configured ACU range. Minimum and maximum choices affect available memory, scaling behavior and related parameters; they do not eliminate the need to measure connections and expensive queries.", "capacity"),
+    ],
+    setup: [
+      note("Choose the compatible database contract", "Record whether the application targets Aurora MySQL or Aurora PostgreSQL, the supported engine version and required extensions or SQL behavior. Validate important queries before treating the managed database as a drop-in replacement.", "replication"),
+      note("Split write and optional read paths", "Configure the writer endpoint for transactions and evaluate a separate reader pool only for reads tolerant of replica freshness. Include DNS refresh and connection recreation in the failover exercise.", "endpoints"),
+      note("Measure the capacity envelope", "For serverless capacity, test normal traffic, a burst and a connection-heavy workload. Monitor capacity and memory pressure while comparing the minimum and maximum range, including any pending parameter changes that require a reboot.", "capacity"),
+      note("Prove restoration independently of failover", "Restore a selected recovery point or snapshot into a separate cluster and verify application data. Record endpoint and access changes needed for cutover; successful replica failover is not evidence that accidental deletion can be repaired.", "backups"),
+    ],
+    configuration: [
+      setting("Writer and reader endpoints", "Keep connection strings tied to the intended role instead of a fixed instance endpoint.", "Long-lived pools can remain unevenly distributed or hold broken connections after failover. Reader endpoints balance connections, so reconnect behavior belongs in the test plan.", "endpoints"),
+      setting("Serverless minimum and maximum ACUs", "Choose a minimum that supports the working set and a maximum that supports the measured peak.", "An excessively low floor can increase pressure or scaling delay. Automatic pause at zero is version/configuration dependent; do not assume every serverless cluster can use it.", "capacity"),
+      setting("Backup retention and snapshots", "Match continuous recovery retention and retained snapshots to the actual recovery requirement.", "A snapshot is a restore source for a new cluster, not a command that rewinds an existing application connection. Test the operational cutover and retention cost.", "backups"),
+    ],
+    security: [
+      note("Verify the database endpoint identity", "Use the engine's TLS configuration to validate the server certificate and hostname with the appropriate AWS CA bundle. Encryption without identity verification does not provide the same assurance about the server reached.", "tls"),
+      note("Use narrowly privileged database accounts", "Give each application the SQL privileges it needs and keep administrative credentials out of ordinary workers. Treat database authentication and network access as separate checks when diagnosing a connection failure.", "tls"),
+    ],
+    example: {
+      title: "An application connection plan for an order service",
+      language: 'text',
+      code: 'Write pool:\n  endpoint = cluster writer endpoint\n  operations = create order, reserve inventory, commit transaction\n\nRead pool:\n  endpoint = cluster reader endpoint\n  operations = catalog browsing, historical reports\n\nAfter creating an order:\n  confirm through the write path when immediate freshness is required',
+      explanation: "This is a connection-routing design, not a deployable Aurora configuration. The application must implement transaction boundaries and choose supported driver settings for its engine. Long-lived reader connections should be included in balancing and failover tests.",
+      checks: ["A newly committed order is confirmed without relying on a potentially lagging replica.", "After a controlled failover, the pool reconnects through the role endpoint and no longer uses a stale fixed instance address."],
+      sourceIds: ['endpoints', 'replication'],
+    },
+    troubleshooting: [
+      fault("Writes fail on an otherwise healthy connection", "The session is served by a reader instance, commonly through a reader endpoint when replicas are present.", "Inspect the connection string and the role of the instance serving the session; a reader endpoint without replicas can instead reach the writer.", "Route writes through the writer endpoint and recreate incorrectly pooled sessions.", "endpoints", "reader"),
+      fault("One replica gets most of the read traffic", "A small number of long-lived connections were established unevenly.", "Compare connection counts and pool lifetimes rather than only query totals.", "Adjust connection pooling with measured load; do not expect statement-level balancing from the reader endpoint.", "endpoints"),
+      fault("Serverless traffic stalls under a burst", "The capacity range or memory/connection demand constrains the workload.", "Inspect ACU utilization, memory pressure and pending parameter application.", "Tune the workload and range based on evidence, applying required parameter changes deliberately.", "capacity"),
+    ],
+    pitfalls: [
+      note("Replication does not replace recovery history", "Replicas can reproduce an accidental logical change. Preserve a tested backup/restore path for data mistakes, and keep its recovery objective separate from infrastructure failover time.", "replication", "backups"),
+      note("Capacity limits are engine-sensitive", "Supported ranges, auto-pause and some parameter behavior depend on version and platform availability. Check the deployed engine's documentation rather than copying a numeric ACU range from another cluster.", "capacity"),
+    ],
+    sources: [
+      source('endpoints', 'Aurora writer, reader and instance endpoints', 'https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html'),
+      source('replication', 'Aurora read replicas and replication roles', 'https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Replication.html'),
+      source('capacity', 'Aurora serverless capacity ranges and parameter effects', 'https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2.setting-capacity.html'),
+      source('backups', 'Aurora backups, snapshots and restoration', 'https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Managing.Backups.html'),
+      source('tls', 'Aurora TLS certificate and identity verification', 'https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.SSL.html'),
+      source('reader', 'Aurora reader endpoint balancing and writer fallback', 'https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Endpoints.Reader.html'),
+    ],
+  },
+  {
+    serviceId: 'rds',
+    operatingModel: [
+      note("Distinguish the two Multi-AZ architectures", "A Multi-AZ DB instance deployment has a standby that supports failover but does not serve reads. A Multi-AZ DB cluster has readable standby instances. The phrase Multi-AZ alone is not enough to describe a read-scaling design.", "multiaz"),
+      note("Read replicas have a separate freshness contract", "RDS read replicas receive engine changes asynchronously, so source commits need not appear immediately on a replica. Supported readable replicas offload queries; Db2 standby replicas and Oracle mounted replicas instead support recovery without accepting user queries. Check the selected engine and replica mode.", "replicas"),
+      note("Configuration belongs to an engine family", "Parameter groups hold database settings and must match the engine/version family. Some engines also have option groups. Changing a console value does not prove that an existing database session has adopted the intended behavior.", "parameters"),
+    ],
+    setup: [
+      note("Write engine-specific acceptance tests", "Name the engine version, required SQL behavior and driver. Test transactions, migrations and connection limits under the application workload rather than treating all RDS engines as interchangeable managed SQL.", "parameters"),
+      note("Build the private connectivity path", "Place the database in an appropriate DB subnet group and allow its port from the application security group. Confirm the application's actual route and DNS resolution before changing SQL credentials to fix a timeout.", "network"),
+      note("Choose availability and read scale separately", "Select the required Multi-AZ deployment type for availability, then decide whether independent read replicas are appropriate. Record which endpoint accepts writes and which application reads can tolerate asynchronous replication.", "multiaz", "replicas"),
+      note("Review and apply a custom parameter group", "Compare intended values with the engine defaults and classify which changes are dynamic or require restart for the selected engine. Rehearse the change window and verify effective values from a database session.", "parameters"),
+    ],
+    configuration: [
+      setting("DBSubnetGroup and VPC security groups", "Select subnets for the intended deployment and restrict inbound database traffic to authorized application sources.", "A publicly accessible flag, route and security-group permission interact; no single checkbox establishes either a working public connection or a private boundary.", "network"),
+      setting("Multi-AZ deployment type", "Choose an instance deployment or supported cluster deployment based on failover and read-traffic needs.", "The single standby in an instance deployment cannot be used to offload reads. Cluster behavior and engine support must be evaluated explicitly.", "multiaz"),
+      setting("DB parameter group", "Version custom parameters together with the application's engine compatibility decisions.", "A parameter update can be pending rather than active, and restart requirements differ by setting. Verify the effective value before declaring a performance change complete.", "parameters"),
+    ],
+    security: [
+      note("Require the intended TLS assurance", "Configure the driver to encrypt traffic and validate the server certificate and hostname with the correct CA bundle. Test certificate rotation compatibility instead of disabling verification when a connection starts failing.", "tls"),
+      note("Keep database and network authorization distinct", "Network access to the database port is not SQL permission. Limit application database accounts to required schemas and operations, and avoid solving a connection-path issue by making the instance publicly reachable.", "network", "tls"),
+    ],
+    example: {
+      title: "A read-only inventory of an RDS instance's placement",
+      language: 'bash',
+      code: "aws rds describe-db-instances \\\n  --db-instance-identifier orders-db \\\n  --output json \\\n  --query 'DBInstances[0].{Engine:Engine,Endpoint:Endpoint.Address,MultiAZ:MultiAZ,Public:PubliclyAccessible,SubnetGroup:DBSubnetGroup.DBSubnetGroupName}'",
+      explanation: "This illustrative read-only CLI query checks an existing instance named orders-db. It does not create or alter infrastructure. A true Multi-AZ DB cluster needs its cluster-level view as well; the returned MultiAZ flag alone is not a complete topology description.",
+      checks: ["The endpoint and subnet group match the intended application environment rather than another account or Region.", "The team identifies the actual deployment type before assuming that a standby can accept reads."],
+      sourceIds: ['network', 'multiaz', 'describe-instances'],
+    },
+    troubleshooting: [
+      fault("Connections time out before authentication", "The route, security group, subnet placement or endpoint is wrong.", "Resolve the hostname and inspect the network path from the actual application host.", "Repair the specific connectivity boundary before changing database users or exposing the database publicly.", "network"),
+      fault("A just-written record is absent from a report", "The report is reading an asynchronous replica.", "Compare the source read with replica lag and the report's connection string.", "Route freshness-sensitive reads appropriately or make the report's delay explicit.", "replicas"),
+      fault("A changed setting has no effect", "The parameter is pending application, belongs to another group or requires an engine-specific restart.", "Compare the attached group, pending state and SQL-visible effective value.", "Apply the supported change procedure in a planned window and validate with a new relevant workload.", "parameters"),
+    ],
+    pitfalls: [
+      note("Do not universalize standby behavior", "The common statement that an RDS standby never serves reads is true for Multi-AZ DB instance deployments, not for every Multi-AZ product. Keep that distinction in architecture diagrams and exam explanations.", "multiaz"),
+      note("Replica promotion is an application event", "An independent read replica is not a transparent extension of every source operation. Plan endpoint, write ownership and client configuration changes for promotion rather than assuming existing sessions switch automatically.", "replicas"),
+    ],
+    sources: [
+      source('multiaz', 'RDS Multi-AZ instance and cluster deployment differences', 'https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html'),
+      source('replicas', 'RDS read replicas and asynchronous replication', 'https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.html'),
+      source('parameters', 'RDS parameter groups and engine settings', 'https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_WorkingWithParamGroups.html'),
+      source('network', 'RDS subnet groups and VPC connectivity', 'https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html'),
+      source('tls', 'RDS TLS encryption and certificate verification', 'https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html'),
+      source('describe-instances', 'RDS describe-db-instances CLI fields and output', 'https://docs.aws.amazon.com/cli/latest/reference/rds/describe-db-instances.html'),
+    ],
+  },
+  {
+    serviceId: 'elasticache',
+    operatingModel: [
+      note("Choose the cache's correctness contract", "In cache-aside, the application checks the cache, reads the source on a miss and fills the cache. In write-through, writes also update cached state. Each approach needs an explicit response to stale data, misses and failed cache updates.", "strategy"),
+      note("Engine and deployment choices matter", "Valkey/Redis OSS replication groups, Memcached and serverless offerings have different topology and feature contracts. This guide's replication and IAM-authentication notes concern supported Valkey/Redis OSS configurations, not every ElastiCache engine.", "replication", "auth"),
+      note("A replica can lag its primary", "Replicas improve availability and can serve suitable reads, but replication delay affects freshness and failure recovery. When ElastiCache is used as a cache, keep a tested way to reconstruct entries from authoritative data.", "replication"),
+    ],
+    setup: [
+      note("Select a bounded first cache", "Start with a read-heavy entity that has a known freshness tolerance, such as product metadata. Define a key including tenant and schema/version context, the source of truth and what the application does when the cache is unavailable.", "strategy"),
+      note("Choose TTL and invalidation together", "Specify how long a value may remain stale and what happens after an authoritative update. Test a failed cache invalidation, not just a successful hit; a TTL limits persistence of stale values but does not guarantee immediate consistency.", "strategy"),
+      note("Verify the actual client route", "Connect from the application's real VPC context using the intended endpoint, port and TLS mode. Check security groups, DNS and client connection pools before attributing all latency to the cache engine.", "connections"),
+      note("Test failover and credential refresh", "For a supported replicated Valkey/Redis deployment, rehearse a primary change and observe client reconnect behavior. With IAM authentication, verify the token and connection lifecycle using a supported client rather than caching a token indefinitely.", "replication", "auth"),
+    ],
+    configuration: [
+      setting("Expiration policy", "Assign TTLs based on business freshness and a documented invalidation path.", "Long TTLs improve hit rate but retain stale data longer; very short TTLs can create repeated source reads. Consider staggered expirations when many hot entries are populated together.", "strategy"),
+      setting("Primary versus reader endpoint", "Send writes to the appropriate primary path and use replicas only where their freshness is acceptable.", "Read distribution and topology discovery depend on the engine and cluster mode. A client configured for the wrong topology can fail despite valid network connectivity.", "replication"),
+      setting("Client connection pool and timeouts", "Reuse a bounded number of connections and distinguish connect time from command latency.", "Opening a new connection for every request adds work and can conceal the real bottleneck. Unbounded retries can amplify a cache incident into source-database overload.", "connections"),
+    ],
+    security: [
+      note("Use supported authentication deliberately", "IAM authentication for supported Valkey and Redis OSS configurations uses temporary signed credentials and requires in-transit encryption (TLS). Configure the supported engine version, IAM-enabled cache user and elasticache:Connect permissions for both user and cache; refresh tokens and long-lived connections as documented.", "auth"),
+      note("Limit network and command authority", "Restrict cache connectivity to application sources and grant only the necessary user permissions. A network-reachable cache should not automatically let every application execute administrative commands or read another tenant's keys.", "connections", "auth"),
+    ],
+    example: {
+      title: "Cache-aside with an explicit stale-data budget",
+      language: 'text',
+      code: 'key = "tenant-17:product:v2:sku-1042"\nvalue = cache.read(key)\nif value is missing:\n  value = source.read_product("tenant-17", "sku-1042")\n  cache.write(key, value, expires_after = chosen_freshness_window)\nreturn value\n\nAfter a committed product update:\n  invalidate the matching key; retain TTL as a fallback',
+      explanation: "This is pseudocode, not an SDK implementation. TTL measures time since cache insertion, not since the source update. A slow read can refill an old value after invalidation. A strict freshness bound therefore needs bounded read/fill time and version or coordination checks, as well as protection against many concurrent misses.",
+      checks: ["A cache miss populates the correct tenant/version key using the intended authoritative read path.", "Test a delayed old read racing with update/invalidation; enforce the documented freshness policy and tenant boundary rather than assuming TTL alone proves them."],
+      sourceIds: ['strategy'],
+    },
+    troubleshooting: [
+      fault("The cache endpoint cannot be reached", "Network rules, DNS or the client's TLS/port settings do not match the deployment.", "Measure DNS and connection establishment separately from command execution.", "Correct the specific network or client mismatch without broadening access to arbitrary sources.", "connections"),
+      fault("Latency rises during a cache miss burst", "Many requests simultaneously refill expired or absent entries from the source.", "Compare hit rate, expiration patterns, source traffic and connection counts.", "Bound fallback load and coordinate hot-key refresh; tune TTLs from the measured freshness requirement.", "strategy", "connections"),
+      fault("Authentication works initially then fails", "A temporary IAM authentication token or connection lifecycle was handled as permanent.", "Inspect the supported client's refresh/reconnect flow without logging token values.", "Use the documented credential provider and connection renewal behavior for that engine configuration.", "auth"),
+    ],
+    pitfalls: [
+      note("Do not assume every cache is durable", "Durability and recovery features depend on the selected engine and deployment. For a cache-aside design, prove that losing cached entries causes bounded extra work rather than losing the only copy of business records.", "replication", "strategy"),
+      note("A higher hit rate can hide wrong data", "A frequently returned stale value improves hit-rate metrics while harming correctness. Measure freshness and invalidation outcomes alongside latency, memory and cache misses.", "strategy"),
+    ],
+    sources: [
+      source('strategy', 'ElastiCache cache population, write-through and TTL strategies', 'https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/Strategies.html'),
+      source('replication', 'ElastiCache Valkey and Redis OSS replication groups', 'https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/Replication.html'),
+      source('auth', 'ElastiCache IAM authentication prerequisites and lifecycle', 'https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/auth-iam.html'),
+      source('connections', 'ElastiCache network and connection troubleshooting', 'https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/TroubleshootingConnections.html'),
+    ],
+  },
+  {
+    serviceId: 'ebs',
+    operatingModel: [
+      note("Block storage is not a mounted filesystem", "An EBS volume attaches to instances in its own Availability Zone and appears as a block device. The guest still needs the correct filesystem and mount configuration; its device name can differ from the API attachment name. Restore a snapshot into another zone when that is the recovery target.", "mount", "attach", "snapshots"),
+      note("Performance has multiple ceilings", "Volume IOPS, throughput, I/O size and the instance's storage capability all influence observed performance. Buying more provisioned IOPS will not fix an application limited by its instance connection, large sequential transfers or serialized writes.", "types"),
+      note("Snapshots are an independent recovery mechanism", "EBS snapshots record point-in-time block data and subsequent snapshots are incremental. EBS does not automatically create a backup plan for an application; schedule snapshots and test restoration according to the required recovery objective.", "snapshots"),
+    ],
+    setup: [
+      note("Profile the disk workload", "Measure read/write mix, request size, queueing and latency for representative operations. Select an SSD or HDD family appropriate to that pattern rather than choosing solely by capacity or a headline performance number.", "types"),
+      note("Identify the existing device before writing", "Inspect the guest's block devices and filesystem signatures. A restored or previously used volume may already contain data; never format a device merely because it has just been attached to a new instance.", "mount"),
+      note("Mount persistently and validate restart", "Use the operating system's documented device and filesystem identifiers for mounting. Check the configuration safely before rebooting and ensure a missing optional data volume does not unexpectedly prevent the machine from starting.", "mount"),
+      note("Rehearse restoration into a separate volume", "Restore a snapshot, attach it to an appropriate test instance and verify actual application files. Coordinate writes or application consistency before backups when the workload requires more than a crash-consistent block view.", "snapshots"),
+    ],
+    configuration: [
+      setting("Volume type, IOPS and throughput", "Choose the volume family and performance settings from the workload's measured bottleneck.", "General Purpose and Provisioned IOPS SSD choices serve different demand profiles. Validate the EC2 instance's ability to use the configured performance before paying for unused headroom.", "types"),
+      setting("Filesystem and mount identity", "Use the existing filesystem when restoring data, and choose a stable identifier for persistent mounts.", "Attachment is not formatting. A mistaken formatting command is destructive, while a mistaken boot-time mount entry can make an otherwise healthy instance unavailable.", "mount"),
+      setting("Encryption and KMS key", "Select encryption and a key lifecycle compatible with every instance or account that must use restored data.", "Encryption protects data but introduces key-authorization and lifecycle dependencies. Retaining a snapshot is not useful if its required key becomes unavailable.", "encryption"),
+    ],
+    security: [
+      note("Protect snapshot access", "Treat snapshots as copies of the complete volume's sensitive data, not harmless metadata. Review sharing, retention and restore permissions as part of the storage access model.", "snapshots", "encryption"),
+      note("Plan key access through recovery", "Check that the intended recovery role can use the encryption key and that administrators cannot accidentally disable data access without understanding dependencies. EBS encryption also protects traffic between the instance and attached storage.", "encryption"),
+    ],
+    example: {
+      title: "Read-only Linux checks before preparing a data volume",
+      language: 'bash',
+      code: 'lsblk -f\nfindmnt\n# Inspect the intended device and existing filesystem before any formatting.\n# Device names are environment-specific; this example performs no writes.',
+      explanation: "These read-only host commands help distinguish attached block devices, filesystem signatures and current mounts. They do not format, resize or repair a disk. Correlate the device with the intended EBS volume before any subsequent administrative operation.",
+      checks: ["A restored volume is recognized as containing an existing filesystem rather than being treated as empty.", "The application data path resolves to the intended mounted volume, not an ordinary directory on the root disk."],
+      sourceIds: ['mount'],
+    },
+    troubleshooting: [
+      fault("The volume is attached but files are missing", "The filesystem is not mounted where the application expects, or the wrong device was selected.", "Compare block-device signatures, mount points and the application's configured path.", "Mount the correct existing filesystem; do not format it as a troubleshooting shortcut.", "mount"),
+      fault("Higher IOPS does not improve latency", "The bottleneck is throughput, instance capability or the application's I/O pattern.", "Measure I/O size, queue depth and instance/volume limits together.", "Change the limiting dimension and repeat a representative workload rather than increasing every setting.", "types"),
+      fault("A restored encrypted volume cannot be used", "The recovery principal or environment cannot access the required KMS key.", "Identify the snapshot's key and the effective restore/attach identity.", "Restore the intended key authorization or recovery path; do not assume a new key can decrypt old data.", "encryption"),
+    ],
+    pitfalls: [
+      note("A snapshot is not a verified application backup", "The service can preserve blocks successfully while the application needs coordinated flushes or recovery procedures to interpret them. Validate restored databases or files with application-level checks.", "snapshots"),
+      note("Multi-Attach is not a shared filesystem", "Supported io1/io2 Multi-Attach configurations expose the same block volume to multiple instances in one zone. Applications need coordinated writes and appropriate clustered filesystems or fencing; mounting an ordinary ext4/XFS filesystem read-write on several hosts is not safe shared-file access. Retained volumes also outlive compute until explicitly removed.", "multi", "attach"),
+    ],
+    sources: [
+      source('types', 'EBS volume types and performance dimensions', 'https://docs.aws.amazon.com/ebs/latest/userguide/ebs-volume-types.html'),
+      source('mount', 'Preparing and mounting an EBS block device', 'https://docs.aws.amazon.com/ebs/latest/userguide/ebs-using-volumes.html'),
+      source('snapshots', 'EBS snapshot behavior and backup responsibility', 'https://docs.aws.amazon.com/ebs/latest/userguide/ebs-snapshots.html'),
+      source('encryption', 'EBS encryption and KMS dependencies', 'https://docs.aws.amazon.com/ebs/latest/userguide/ebs-encryption.html'),
+      source('attach', 'EBS attachment and Availability Zone constraints', 'https://docs.aws.amazon.com/ebs/latest/userguide/ebs-attaching-volume.html'),
+      source('multi', 'EBS Multi-Attach and concurrent writer requirements', 'https://docs.aws.amazon.com/ebs/latest/userguide/ebs-volumes-multi.html'),
+    ],
+  },
+  {
+    serviceId: 'efs',
+    operatingModel: [
+      note("Mount targets provide the network entry", "Compute clients mount an EFS filesystem through mount targets in a VPC. A Regional filesystem can have a mount target in each Availability Zone; a One Zone filesystem has its mount target in that filesystem's zone.", "mounts"),
+      note("Access points shape application access", "An access point can enforce a POSIX identity and a root directory for an application. It is not another filesystem or a separate network endpoint; it uses the filesystem's mount-target connectivity.", "access"),
+      note("Network, IAM and POSIX checks are distinct", "A client can reach the NFS endpoint yet fail file operations because its UID/GID or directory mode is wrong. Conversely, correct Unix permissions do not create a network path or bypass an explicit IAM deny.", "iam", "posix"),
+    ],
+    setup: [
+      note("Choose Regional or One Zone intentionally", "Place the filesystem and mount targets according to the application's availability needs. Record which zones host clients and which mount target each uses; do not mistake multi-client access for a complete disaster-recovery plan.", "mounts"),
+      note("Authorize the NFS network path", "Allow the required NFS traffic from the intended clients to mount-target security groups. Check DNS and route behavior from an actual application host before changing file ownership to repair a connection timeout.", "mounts"),
+      note("Create an application access point", "Choose a root directory and an enforced numeric user/group identity that match the application. Include directory creation ownership and permissions where needed, then test with a non-root application process.", "access", "posix"),
+      note("Measure the real file workload", "Test the mix of small metadata operations, sequential transfer and concurrent clients. Choose throughput behavior using observed latency and demand instead of assuming a large network filesystem behaves like a local block disk.", "performance"),
+    ],
+    configuration: [
+      setting("AccessPoint RootDirectory and PosixUser", "Define the application's visible subtree and the UID/GID used for requests through the access point.", "The root directory must have suitable permissions. A friendly Linux username on one host does not guarantee the same numeric identity on another.", "access", "posix"),
+      setting("Throughput mode", "Compare Elastic, Provisioned or Bursting according to the supported filesystem configuration and measured demand.", "The appropriate choice depends on traffic shape and cost. More throughput does not necessarily remove latency caused by many serialized metadata operations.", "performance"),
+      setting("Client IAM authorization", "Use the EFS mount helper's supported IAM/TLS path and a filesystem policy when identity-based client control is required.", "IAM permissions for ClientMount, ClientWrite and ClientRootAccess differ. POSIX permissions still participate, so passing one authorization layer is not enough.", "iam"),
+    ],
+    security: [
+      note("Constrain applications to their access point", "Use filesystem policy conditions to require the intended access point and identity. Creating an access point alone does not prevent direct or alternate mounts; the default filesystem policy allows reachable anonymous NFS clients subject to POSIX checks. Review ClientRootAccess and exclude unintended access paths.", "access", "iam"),
+      note("Keep numeric identities consistent", "EFS checks numeric POSIX ownership. Make container and host user/group choices explicit, and avoid broadly writable directories as a permanent fix for a UID mismatch.", "posix"),
+    ],
+    example: {
+      title: "An access-point identity and root-directory fragment",
+      language: 'json',
+      code: '{\n  "PosixUser": {"Uid": 1001, "Gid": 1001},\n  "RootDirectory": {\n    "Path": "/app-reports",\n    "CreationInfo": {\n      "OwnerUid": 1001,\n      "OwnerGid": 1001,\n      "Permissions": "750"\n    }\n  }\n}',
+      explanation: "This CreateAccessPoint fragment omits FileSystemId and the request's ClientToken. CreationInfo initializes a missing root directory at mount time; it does not change permissions on an existing directory. Configure mount targets, TLS/IAM mounting and a filesystem policy that restricts access to the intended access point and principal.",
+      checks: ["The access point's effective UID/GID and the directory's actual permissions allow the intended file operations.", "With the complete policy in place, an unauthorized principal cannot bypass isolation using a direct mount or another access point; changing a local username is not an authorization test."],
+      sourceIds: ['access', 'posix', 'iam', 'create-access', 'root-directory'],
+    },
+    troubleshooting: [
+      fault("Mount requests time out", "The client cannot reach a suitable mount target or resolve its endpoint.", "Inspect client placement, mount-target availability, DNS and NFS security-group rules.", "Repair the specific network path before changing POSIX permissions.", "mounts"),
+      fault("Mount succeeds but writes return permission denied", "UID/GID, directory modes or ClientWrite authorization do not permit the operation.", "Compare the effective numeric identity, directory ownership and IAM decision.", "Correct the intended ownership or narrow policy rather than making the entire filesystem world-writable.", "posix", "iam"),
+      fault("Throughput improves but many file operations remain slow", "The workload performs serialized small-file or metadata operations.", "Measure operation latency and concurrency alongside transferred bytes.", "Change the access pattern or supported performance configuration based on the workload rather than throughput alone.", "performance"),
+    ],
+    pitfalls: [
+      note("An access point is not a mount target", "Security groups apply at the mount-target level, while access points define application access behavior. Keep both resources in the runbook so a permissions fix is not incorrectly used for a networking failure.", "access"),
+      note("A shared filesystem does not coordinate application writes", "Multiple clients can access the same files, but the application still needs an appropriate locking and update strategy. Test concurrent writers against the actual file format and recovery requirements.", "posix", "performance"),
+    ],
+    sources: [
+      source('mounts', 'EFS mount targets and Availability Zone placement', 'https://docs.aws.amazon.com/efs/latest/ug/accessing-fs.html'),
+      source('access', 'EFS access point identity and root directory behavior', 'https://docs.aws.amazon.com/efs/latest/ug/efs-access-points.html'),
+      source('performance', 'EFS throughput and performance configuration', 'https://docs.aws.amazon.com/efs/latest/ug/performance.html'),
+      source('iam', 'EFS IAM client actions and filesystem policies', 'https://docs.aws.amazon.com/efs/latest/ug/iam-access-control-nfs-efs.html'),
+      source('posix', 'EFS numeric users, groups and file permissions', 'https://docs.aws.amazon.com/efs/latest/ug/accessing-fs-nfs-permissions.html'),
+      source('create-access', 'EFS CreateAccessPoint API request', 'https://docs.aws.amazon.com/efs/latest/APIReference/API_CreateAccessPoint.html'),
+      source('root-directory', 'EFS access-point root creation and existing permissions', 'https://docs.aws.amazon.com/efs/latest/ug/enforce-root-directory-access-point.html'),
+    ],
+  },
+  {
+    serviceId: 's3',
+    operatingModel: [
+      note("Objects have keys, not filesystem paths", "In a general-purpose S3 bucket, an object is addressed by bucket and key. Slash-delimited prefixes help organize names, but they do not create ordinary directories or supply filesystem locking semantics for concurrent application updates.", "overview"),
+      note("Versioning preserves alternatives", "With versioning enabled, overwriting a key creates another version and an ordinary deletion creates a delete marker. Recovery therefore depends on selecting the intended version; a missing current object does not always mean every historical version is gone.", "versioning"),
+      note("A presigned URL carries delegated authority", "The URL uses its signer's permissions for a specified operation and time window. It can be reused until its effective expiration, and temporary signer credentials can shorten that window. Treat the URL as a bearer capability.", "presigned"),
+    ],
+    setup: [
+      note("Define object ownership and naming", "Choose keys that encode the application's ownership and retrieval needs without putting sensitive information unnecessarily into names. Record whether an upload creates a new immutable key or intentionally replaces the current object at a known key.", "overview", "presigned"),
+      note("Keep public access deliberately blocked", "Review the effective Block Public Access controls at the applicable organization, account, bucket and access-point levels. Provide application access through scoped identity/resource permissions rather than disabling the guardrail to fix one failed request.", "public"),
+      note("Plan recovery and retention", "Enable versioning when overwrites or accidental deletion need recovery, then design lifecycle treatment for old versions. Test retrieving a prior version and distinguish an ordinary delete marker from permanent deletion of a specific version.", "versioning"),
+      note("Test delegated upload/download boundaries", "Issue short-lived presigned URLs for the exact key and operation the user is allowed to perform. Test expiration, a changed method and an unauthorized key, while ensuring application logs do not retain usable URLs.", "presigned"),
+    ],
+    configuration: [
+      setting("VersioningConfiguration", "Enable versioning when preserving earlier object states supports the recovery requirement.", "Every retained version is a full billable object version, not a diff. Pair recovery goals with a lifecycle policy instead of accumulating revisions without a retention owner.", "versioning"),
+      setting("Block Public Access", "Keep the applicable controls enabled unless a reviewed public use case requires a different design.", "Settings at broader scopes can override a permissive bucket policy. Diagnose that policy interaction rather than weakening controls indiscriminately.", "public"),
+      setting("Presigned URL operation and expiration", "Sign the exact read or write operation for the intended object and a bounded lifetime.", "The URL may be reused while valid, and signer credential expiry can end access sooner than requested. A presigned upload can overwrite an existing key unless the design prevents it.", "presigned"),
+    ],
+    security: [
+      note("Derive object access from trusted ownership", "Authorize the requesting user before choosing the key to sign or retrieve. Never sign a client-supplied arbitrary key just because the application role itself can access the whole bucket.", "presigned"),
+      note("Audit the effective exposure boundary", "Review bucket/access-point permissions alongside Block Public Access and access analysis. A successful authenticated request does not prove the same object is inaccessible anonymously or from an unintended principal.", "public"),
+    ],
+    example: {
+      title: "Inspect versions of one application object",
+      language: 'bash',
+      code: "aws s3api list-object-versions \\\n  --bucket example-orders-archive \\\n  --prefix invoices/order-1042.json \\\n  --output json \\\n  --query '{Versions:Versions[].{Key:Key,VersionId:VersionId,Latest:IsLatest},DeleteMarkers:DeleteMarkers[].{Key:Key,VersionId:VersionId,Latest:IsLatest}}'",
+      explanation: "This read-only example requires s3:ListBucketVersions on the placeholder general-purpose bucket. A prefix can match several keys, so confirm the full key before recovery. Listing metadata does not grant s3:GetObjectVersion for historical contents. This command neither deletes markers nor restores objects.",
+      checks: ["The operator distinguishes current versions, historical versions and delete markers for the exact object.", "Recovery selects the intended version and is tested without accidentally replacing unrelated objects that share the prefix."],
+      sourceIds: ['versioning', 'list-versions', 'get-object'],
+    },
+    troubleshooting: [
+      fault("An object seems deleted although versioning is enabled", "The current version is a delete marker.", "List versions and delete markers for the exact key using an authorized recovery role.", "Retrieve or restore the intended historical version through a reviewed recovery procedure.", "versioning"),
+      fault("A presigned URL expires unexpectedly early", "The credentials used to sign it expired before the requested URL lifetime.", "Compare the signer's credential lifecycle with the URL generation settings.", "Use a supported credential/expiration design and regenerate only after reauthorizing the requester.", "presigned"),
+      fault("A public-looking policy still returns access denied", "An effective Block Public Access control rejects that exposure.", "Inspect the controls at each applicable scope and the request's access path.", "Use the intended private access mechanism or obtain an explicit reviewed public design.", "public"),
+    ],
+    pitfalls: [
+      note("Strong consistency is not a cross-object transaction", "S3's documented read-after-write behavior does not atomically commit several related object keys as one business operation. Use an application manifest or another coordination mechanism when readers need a consistent multi-object publication.", "overview"),
+      note("Versioning is not immutable retention", "An authorized caller can still permanently delete specified versions unless additional controls prevent it. Match recovery, retention and access requirements instead of treating versioning alone as a write-once guarantee.", "versioning"),
+    ],
+    sources: [
+      source('overview', 'S3 object model and data consistency', 'https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html'),
+      source('versioning', 'S3 versions, delete markers and retention', 'https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html'),
+      source('presigned', 'S3 presigned URL authority and expiration', 'https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html'),
+      source('public', 'S3 Block Public Access evaluation', 'https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html'),
+      source('list-versions', 'S3 list-object-versions CLI permissions and output', 'https://docs.aws.amazon.com/cli/latest/reference/s3api/list-object-versions.html'),
+      source('get-object', 'S3 current and historical object read permissions', 'https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html'),
+    ],
+  },
+  {
+    serviceId: 'athena',
+    operatingModel: [
+      note("Separate data, metadata and query execution", "For ordinary SQL over S3, the objects hold the data while catalog definitions describe how to interpret it. A successful table definition does not prove that file formats, columns, partitions or object permissions match the stored dataset.", "partitions", "security"),
+      note("Partitions reduce the work a query needs", "Partition-aware predicates can eliminate irrelevant locations from a scan. Folder naming alone is not enough: the table must know the partitions or have appropriate projection configuration, and the query must constrain the partition keys.", "partitions"),
+      note("Results have their own storage and access", "Athena supports customer-owned S3 result locations and managed query results. For an S3 result bucket, protect result objects separately from source data because a result may contain sensitive subsets or aggregates.", "results"),
+    ],
+    setup: [
+      note("Validate one representative file", "Check the file format, schema and actual S3 location using a small known dataset before creating a large table. Include malformed or differently typed data in the test so parsing failures are discovered before broad scans.", "partitions"),
+      note("Choose a workgroup for the workload", "Separate scheduled application queries from exploratory analysis where different access, settings and usage controls are needed. Confirm that clients actually submit into that workgroup rather than silently using the primary default.", "workgroups"),
+      note("Configure result handling", "Select managed results or a deliberately owned S3 location, including its encryption, permissions and retention. Verify that the operator can retrieve query output without granting unintended access to all source objects.", "results", "security"),
+      note("Measure the scan before expanding", "Run a query constrained to a known partition and compare bytes scanned with a broader query. Add per-query scan controls and aggregate alerts appropriate to the workload, then test the action taken when a threshold is crossed.", "limits"),
+    ],
+    configuration: [
+      setting("Partition keys and layout", "Use keys aligned with common filters, such as date or source, and register or project the corresponding locations.", "Too many tiny partitions and files add planning and request overhead. A date-looking folder structure is not automatically a correctly configured table partition.", "partitions"),
+      setting("Workgroup enforcement", "Enforce required workgroup settings when client overrides would violate the result-location or encryption design.", "Workgroups organize execution and access but do not replace permissions on the underlying data and catalog. Test the effective settings seen by each client.", "workgroups", "security"),
+      setting("Per-query limit versus workgroup alert", "Use the per-query data-scan limit to cancel excessive individual scans and aggregate thresholds for notifications.", "A workgroup-wide alert does not automatically cancel queries. Canceled work can still incur charges and leave partial S3 results that need lifecycle handling.", "limits"),
+    ],
+    security: [
+      note("Authorize all required layers", "A query can need Athena actions, catalog access, source S3 access and relevant encryption permissions. Diagnose the denied layer precisely rather than giving the query role broad account-wide privileges.", "security"),
+      note("Protect exported query output", "For customer-owned result buckets, review direct S3 GetObject access as well as Athena GetQueryResults access. Prevent users from bypassing an intended query-result restriction by reading an exposed output object directly.", "results"),
+    ],
+    example: {
+      title: "A partition-constrained report query",
+      language: 'text',
+      code: "SELECT status, count(*) AS request_count\nFROM application_requests\nWHERE log_date = '2026-11-01'\nGROUP BY status;",
+      explanation: "This SQL assumes log_date is the table's registered or projected string partition key. It is illustrative, not an executed query. Merely having a timestamp column inside every file would not establish the same partition-pruning contract.",
+      checks: ["The query returns the known counts for the chosen sample partition.", "Execution statistics show the intended scan reduction compared with an unconstrained query over the same dataset."],
+      sourceIds: ['partitions'],
+    },
+    troubleshooting: [
+      fault("A date filter still scans most of the dataset", "The predicate does not target the configured partition key or partition metadata is wrong.", "Compare the table definition, S3 layout and query predicates with execution statistics.", "Correct the partition contract and rerun a small representative query.", "partitions"),
+      fault("A query starts but fails with access denied", "Source objects, catalog metadata, results or encryption keys have a separate missing permission.", "Read the specific failed resource/action and compare all required access layers.", "Grant the minimal missing access without assuming Athena permission covers storage.", "security"),
+      fault("An aggregate usage alert fires but queries continue", "The workgroup threshold is a notification, not an automatic cancellation policy.", "Inspect whether the control is per-query or aggregate and what alarm action is configured.", "Use the appropriate control or a deliberately designed operational response to stop further work.", "limits"),
+    ],
+    pitfalls: [
+      note("A LIMIT clause is not a universal scan budget", "A small result set does not by itself prove that little source data was examined. Use execution statistics and partition-aware design to evaluate work rather than counting returned rows.", "partitions"),
+      note("A table schema does not clean its files", "Catalog metadata describes how Athena interprets data; it does not silently rewrite incompatible source records. Keep ingestion validation and schema evolution in the data pipeline.", "partitions", "security"),
+    ],
+    sources: [
+      source('partitions', 'Athena partition registration and pruning', 'https://docs.aws.amazon.com/athena/latest/ug/partitions.html'),
+      source('workgroups', 'Athena workgroup access and enforced configuration', 'https://docs.aws.amazon.com/athena/latest/ug/workgroups-manage-queries-control-costs.html'),
+      source('results', 'Athena customer-owned and managed query results', 'https://docs.aws.amazon.com/athena/latest/ug/querying.html'),
+      source('security', 'Athena source, catalog and API permissions', 'https://docs.aws.amazon.com/athena/latest/ug/security-iam-athena.html'),
+      source('limits', 'Athena per-query cancellation and aggregate alerts', 'https://docs.aws.amazon.com/athena/latest/ug/workgroups-setting-control-limits-cloudwatch.html'),
+    ],
+  },
+  {
+    serviceId: 'kinesis',
+    operatingModel: [
+      note("Scope the name to Data Streams", "This handbook covers Amazon Kinesis Data Streams: producers append records and independent consumers process a retained stream. Amazon Data Firehose has a different delivery contract and should not be treated as the same service configuration.", "concepts"),
+      note("A partition key controls distribution", "Records map to shards through their partition key. A highly concentrated key can create a hot portion of the stream even when total traffic looks moderate. Preserve ordering requirements without forcing unrelated entities into one partition key.", "concepts", "producer"),
+      note("Checkpoints describe consumer progress", "KCL manages distributed worker coordination, shard changes and checkpoints. The application must still decide when a business side effect is complete enough to checkpoint and how to handle records repeated after an interrupted attempt.", "kcl"),
+    ],
+    setup: [
+      note("Define the record contract", "Choose a business event ID, schema version and partition key from the application's ordering requirement. Test representative payload sizes and traffic skew rather than distributing synthetic records evenly and assuming production behaves the same.", "concepts"),
+      note("Handle producer partial success", "When batching with PutRecords, inspect each result entry and retry the failed records. Maintain an application identifier so downstream processing can recognize duplicates caused by retries or ambiguous producer outcomes.", "producer"),
+      note("Choose a supported consumer implementation", "Use the current supported KCL guidance and record its application identity and metadata resources. The legacy shared-throughput KCL page documents older versions; do not copy an obsolete library setup without checking the current guide.", "kcl"),
+      note("Test interruption and catch-up", "Stop a consumer after a side effect but before its checkpoint, then restart it. Measure recovery, duplicate handling and lag while the producer continues, and verify that the retention window covers the required recovery period.", "kcl", "concepts"),
+    ],
+    configuration: [
+      setting("PartitionKey", "Choose a stable key for the entity whose records need coordinated ordering.", "A single global key limits distribution; randomizing every record can destroy useful ordering. If a hot entity must be split, document how consumers reconstruct its required semantics.", "concepts", "producer"),
+      setting("Shared throughput versus enhanced fan-out", "Evaluate enhanced fan-out when independent consumers need dedicated read throughput.", "It changes how records reach consumers and has separate capacity/cost implications. Verify mode and Region-specific limits rather than hardcoding a universal consumer count.", "fanout"),
+      setting("Checkpoint timing", "Checkpoint only after the application has durably completed the work represented by those records.", "Frequent checkpoints add coordination work; delayed checkpoints increase replay after a failure. Neither choice removes the need to make repeated side effects safe.", "kcl"),
+    ],
+    security: [
+      note("Separate producer and consumer roles", "A producer normally needs the relevant stream write actions, while a consumer needs read/subscribe actions for its chosen mode. Scope roles to intended streams and keep credentials out of record bodies or application configuration.", "security"),
+      note("Authorize KCL's supporting resources", "KCL also uses DynamoDB metadata and CloudWatch metrics. Match permissions to the selected KCL version and configured table names rather than assuming permission to read the stream is sufficient to operate the consumer.", "kcl-iam"),
+    ],
+    example: {
+      title: "Producer batching with per-record recovery",
+      language: 'text',
+      code: 'batch = records with stable eventId and chosen partitionKey\nresult = PutRecords(batch)\nfailed = entries whose corresponding result contains ErrorCode\nretry only failed entries with bounded backoff\n\nconsumer:\n  apply each event using its durable eventId\n  checkpoint after the represented work is durable',
+      explanation: "This is processing pseudocode rather than a complete SDK implementation. The producer preserves the request/result position mapping. Retrying only failures reduces unnecessary duplicates but cannot make the external business side effect atomic with Kinesis acknowledgement.",
+      checks: ["A batch containing both success and failure retries only the failed positions.", "Reprocessing an already applied event after a consumer crash does not duplicate the business result."],
+      sourceIds: ['producer', 'kcl'],
+    },
+    troubleshooting: [
+      fault("Only part of a producer batch reaches the stream", "The caller checked HTTP status but ignored failed result entries.", "Compare each request position with its PutRecords error/result entry.", "Retry failed records with bounded backoff and preserve their application event IDs.", "producer"),
+      fault("Lag rises for one hot entity", "Its partition key concentrates work or the consumer's per-record work is slow.", "Compare partition-key distribution, shard-level pressure and processing duration.", "Reduce the hot path or redesign partitioning with an explicit ordering strategy.", "concepts", "producer"),
+      fault("The consumer can read but cannot establish progress", "Its KCL metadata or metrics permissions do not match the configured version/resources.", "Inspect denied DynamoDB/CloudWatch actions and actual metadata table names.", "Grant the narrow supporting permissions required by the chosen KCL deployment.", "kcl-iam"),
+    ],
+    pitfalls: [
+      note("Batch success is not global ordering", "PutRecords partial failures and retries can change observed ordering. If strict sequential writes are required for an entity, choose and test the producer API/sequence strategy that supports that contract.", "producer"),
+      note("Retention is a recovery window, not an archive plan", "A consumer that falls behind beyond available retained records cannot recreate those records merely by resetting its checkpoint. Plan durable downstream storage separately when the business needs a longer history.", "concepts", "kcl"),
+    ],
+    sources: [
+      source('concepts', 'Kinesis Data Streams shards, partition keys and retention', 'https://docs.aws.amazon.com/streams/latest/dev/key-concepts.html'),
+      source('producer', 'Kinesis producer API and partial batch handling', 'https://docs.aws.amazon.com/streams/latest/dev/developing-producers-with-sdk.html'),
+      source('kcl', 'Current Kinesis Client Library responsibilities', 'https://docs.aws.amazon.com/streams/latest/dev/kcl.html'),
+      source('fanout', 'Kinesis enhanced fan-out consumer behavior', 'https://docs.aws.amazon.com/streams/latest/dev/enhanced-consumers.html'),
+      source('security', 'Kinesis least privilege and producer/consumer roles', 'https://docs.aws.amazon.com/streams/latest/dev/security-best-practices.html'),
+      source('kcl-iam', 'KCL metadata and monitoring permissions', 'https://docs.aws.amazon.com/streams/latest/dev/kcl-iam-permissions.html'),
+    ],
+  },
+  {
+    serviceId: 'opensearch',
+    operatingModel: [
+      note("An index is a derived search structure", "This handbook focuses on managed OpenSearch Service domains, not OpenSearch Serverless collections. Design mappings and ingestion around the search workload, and retain an authoritative source when indexes must be rebuilt after a mapping or pipeline change.", "operations"),
+      note("Shards distribute data and consume resources", "Primary shards divide an index and replicas provide additional copies. Too many tiny shards consume memory and coordination resources, while very large shards can make recovery and balanced placement difficult.", "shards"),
+      note("Authorization has multiple boundaries", "Reachability, the domain access policy and fine-grained access controls all affect a request. Fine-grained roles can limit indexes, documents and fields; a successful network connection is not authorization to search every tenant's data.", "security"),
+    ],
+    setup: [
+      note("Define query and mapping acceptance examples", "Collect representative searches, exact filters, sorting and expected results. Decide which fields need full-text analysis and which need exact matching before bulk ingestion makes an incorrect mapping expensive to replace.", "operations"),
+      note("Estimate then measure domain size", "Account for source volume, index overhead, replicas, growth and recovery space. Use representative indexing and search traffic to validate the estimate rather than choosing nodes solely from raw source-data size.", "sizing"),
+      note("Select shard topology before loading", "Choose a manageable number of primaries and replicas for the expected index size and node layout. Document an index migration or reindex strategy for growth instead of assuming every shard-setting change is trivial in place.", "shards"),
+      note("Test application authorization and failure pressure", "Use a constrained application role to search an allowed index and attempt a forbidden one. Then examine behavior under disk or JVM pressure in a safe environment so rate limiting and backpressure have an understood response.", "security", "errors"),
+    ],
+    configuration: [
+      setting("number_of_shards and number_of_replicas", "Choose an index layout based on projected data size, nodes and recovery needs.", "Replicas consume storage; excessive primaries impose overhead even when data is small. Do not copy another domain's default shard count without measuring your workload.", "shards"),
+      setting("Domain access policy and fine-grained roles", "Align the caller's authentication method with the domain policy and the intended index/document/field privileges.", "A request can pass one layer and fail another. An application-side tenant filter is useful query logic, but should not be the only boundary when clients can reach the domain directly.", "security"),
+      setting("Supported engine/API version", "Use operations supported by the deployed OpenSearch Service version and test clients against that version.", "Managed-service support is not identical to every operation documented for a different open-source release or for Serverless collections.", "operations"),
+    ],
+    security: [
+      note("Keep ingestion and search authority separate", "An indexing worker needs different permissions from a user-facing search service. Map each to suitable fine-grained roles and verify that search-only callers cannot alter mappings or delete indexes.", "security"),
+      note("Test tenant isolation with negative queries", "Attempt direct document reads, broad searches and field access using the application's actual role. A user interface that hides another tenant's result does not prove the backend access policy enforces that boundary.", "security"),
+    ],
+    example: {
+      title: "A search body combining full-text relevance with an exact filter",
+      language: 'json',
+      code: '{\n  "query": {\n    "bool": {\n      "must": [{"match": {"title": "deployment failure"}}],\n      "filter": [{"term": {"tenantId": "tenant-17"}}]\n    }\n  }\n}',
+      explanation: "This body assumes title is a text field and tenantId is an exact keyword field. match analyzes the supplied text and defaults to matching either term; use an appropriate operator or phrase query for a stricter requirement. The tenant filter is not a security policy: authorization must still prevent bypassing it.",
+      checks: ["Known tenant-17 documents match the expected text queries and exact filter.", "Changing or removing the filter does not grant a constrained caller unauthorized tenant access."],
+      sourceIds: ['operations', 'security', 'bool-query', 'match-query'],
+    },
+    troubleshooting: [
+      fault("Search requests receive authorization errors", "The domain policy, signing method or fine-grained role mapping rejects the caller.", "Identify which access layer failed and the caller's effective backend roles.", "Correct the intended authentication/role mapping without granting unrestricted domain access.", "security"),
+      fault("The cluster becomes yellow or red", "Replica or primary shards cannot be allocated successfully.", "Inspect shard allocation and node/storage evidence; yellow and red do not describe the same availability condition.", "Repair capacity or allocation causes before simply suppressing the alarm.", "errors"),
+      fault("Indexing slows or is blocked under pressure", "Disk watermarks, JVM pressure or write throttling protect a stressed domain.", "Correlate rejection errors with free storage, memory pressure and ingestion rate.", "Reduce load and address the limiting resource; bounded retries should not multiply an overloaded ingestion stream.", "errors", "sizing"),
+    ],
+    pitfalls: [
+      note("Raw document size is not the full storage budget", "Index structures, replicas and operational headroom consume additional storage. Validate the estimate with real mappings and documents before relying on a capacity number.", "sizing"),
+      note("A search index is not a database transaction", "Indexing and querying semantics differ from an application's authoritative transactional store. Define how search results recover from delayed or failed ingestion, including a safe replay or rebuild procedure.", "operations"),
+    ],
+    sources: [
+      source('security', 'OpenSearch Service fine-grained authorization layers', 'https://docs.aws.amazon.com/opensearch-service/latest/developerguide/fgac.html'),
+      source('sizing', 'OpenSearch domain sizing and representative testing', 'https://docs.aws.amazon.com/opensearch-service/latest/developerguide/sizing-domains.html'),
+      source('shards', 'OpenSearch primary and replica shard sizing', 'https://docs.aws.amazon.com/opensearch-service/latest/developerguide/bp-sharding.html'),
+      source('errors', 'OpenSearch allocation, pressure and access troubleshooting', 'https://docs.aws.amazon.com/opensearch-service/latest/developerguide/handling-errors.html'),
+      source('operations', 'OpenSearch Service supported API operations', 'https://docs.aws.amazon.com/opensearch-service/latest/developerguide/supported-operations.html'),
+      source('bool-query', 'OpenSearch Boolean must and filter semantics', 'https://docs.opensearch.org/latest/query-dsl/compound/bool/'),
+      source('match-query', 'OpenSearch match query analysis and default operator', 'https://docs.opensearch.org/latest/query-dsl/full-text/match/'),
+    ],
+  },
+  {
+    serviceId: 'ecr',
+    operatingModel: [
+      note("A registry stores artifacts, not running containers", "ECR stores image manifests and layers for retrieval by container runtimes. Publishing an image does not deploy it or prove it runs; the workload platform must reference and pull the intended artifact.", "auth"),
+      note("Tags and content identity are different", "A tag is a human-readable reference whose overwrite behavior depends on repository mutability settings and exclusions. Record the image digest used by a release so an investigation can identify the exact artifact independently of a moving tag.", "tags"),
+      note("Scanning has a chosen coverage contract", "Basic scanning checks operating-system vulnerabilities; enhanced scanning integrates with Inspector for operating-system and supported language-package findings. Frequency and supported artifact state matter, so absence of findings is not proof that every image was examined.", "scanning"),
+    ],
+    setup: [
+      note("Define a release tagging convention", "Use a unique build or commit-derived tag for release artifacts and document which, if any, tags are intentionally mutable. Separate promotion from rebuilding so the artifact validated in testing can be identified in production.", "tags"),
+      note("Authenticate the intended principal", "Use an ECR credential helper or the supported token login flow with the actual registry endpoint and Region. The token's permissions reflect the IAM principal that obtained it; login is not a grant of repository administration.", "auth"),
+      note("Choose and verify scanning coverage", "Configure the registry/repository filters and scanning mode appropriate to the release policy. Check the scan status for the exact digest and define how actionable findings block promotion or trigger an update.", "scanning"),
+      note("Preview lifecycle cleanup", "Define retention rules for unneeded images, then run the lifecycle preview before applying them. Preserve artifacts referenced by current deployments and rollback plans even when their age makes them candidates for cleanup.", "lifecycle"),
+    ],
+    configuration: [
+      setting("Image tag mutability", "Use immutable release tags and review any configured exclusions explicitly.", "An allowed mutable exclusion can still move a familiar tag. Immutability prevents overwriting the protected tag but does not by itself guarantee signature, scan coverage or deployment of that artifact.", "tags"),
+      setting("Basic versus enhanced scanning", "Choose the required package coverage and scan frequency, then verify the scan result for each promoted digest.", "For current Basic scanning, use DescribeImageScanFindings rather than the legacy summary/status fields in DescribeImages. Changing modes changes scan views; archived images need restoration before scanning. An empty report does not prove a clean image.", "scanning"),
+      setting("Lifecycle policy rules", "Keep retention conditions specific enough to preserve active and recovery artifacts.", "Cleanup can remove an image that a future replacement task still needs to pull. Preview affected digests and align retention with deployment history before enabling a rule.", "lifecycle"),
+    ],
+    security: [
+      note("Keep registry login credentials out of logs", "The authorization token is a credential. Use supported credential handling and standard input for login rather than placing a decoded password in scripts, command history or diagnostic output.", "auth"),
+      note("Treat scanning as one release control", "Review findings for the deployed digest and maintain an update process. Vulnerability scanning does not prove application authorization, configuration correctness or the absence of malicious behavior in a dependency.", "scanning"),
+    ],
+    example: {
+      title: "Read the digest associated with a release tag",
+      language: 'bash',
+      code: "aws ecr describe-images \\\n  --repository-name orders-api \\\n  --image-ids imageTag=release-1042 \\\n  --output json \\\n  --query 'imageDetails[0].{Digest:imageDigest,Tags:imageTags,PushedAt:imagePushedAt}'",
+      explanation: "This read-only inventory query assumes the placeholder repository and tag exist in the selected account and Region. Record the returned digest alongside the release. It does not authenticate Docker, publish an image or start a container.",
+      checks: ["The digest recorded for the tested release matches the digest selected by the deployment.", "A later lookup of an intentionally mutable tag is not mistaken for proof that it still references the earlier artifact."],
+      sourceIds: ['tags', 'auth', 'describe-images'],
+    },
+    troubleshooting: [
+      fault("Docker login or pull fails after previously working", "The registry token expired, the wrong endpoint was used or the caller lacks the required repository permission.", "Check account/Region, effective role and credential-helper/token refresh behavior.", "Refresh through the supported path and repair only the missing authorization.", "auth"),
+      fault("A release push reports ImageTagAlreadyExistsException", "The target tag is protected by immutability.", "Inspect the repository mutability mode, exclusions and existing tag digest.", "Publish a new unique release tag rather than weakening the repository's release contract.", "tags"),
+      fault("Replacement tasks cannot pull an older release", "A lifecycle rule removed an artifact still needed for redeployment or rollback.", "Compare the requested digest with lifecycle preview/history and retention rules.", "Recover through the trusted artifact process and adjust retention to cover the actual rollback window.", "lifecycle"),
+    ],
+    pitfalls: [
+      note("An image tag is not a scan result", "A familiar release tag does not establish whether that exact digest was scanned, with which mode or when findings changed. Keep artifact identity and security evidence linked in the release record.", "tags", "scanning"),
+      note("Do not make cleanup irreversible by accident", "Before expiring images, identify every environment and rollback path that still references them. A running container may continue while a later reschedule fails to pull the deleted artifact.", "lifecycle"),
+    ],
+    sources: [
+      source('auth', 'ECR registry authentication and token authority', 'https://docs.aws.amazon.com/AmazonECR/latest/userguide/registry_auth.html'),
+      source('tags', 'ECR tag immutability and exclusions', 'https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-tag-mutability.html'),
+      source('scanning', 'ECR basic and enhanced vulnerability scanning', 'https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning.html'),
+      source('lifecycle', 'ECR lifecycle policy evaluation and preview', 'https://docs.aws.amazon.com/AmazonECR/latest/userguide/LifecyclePolicies.html'),
+      source('describe-images', 'ECR describe-images CLI fields and image identifiers', 'https://docs.aws.amazon.com/cli/latest/reference/ecr/describe-images.html'),
+    ],
+  },
+  {
+    serviceId: 'ecs',
+    operatingModel: [
+      note("Task definition, task and service have different roles", "A task definition describes containers and resource settings; a task is a running instance of that definition. A service maintains a desired task population and deployment behavior. Registering a new definition alone does not update a running service.", "tasks"),
+      note("Execution identity is not application identity", "The execution role lets ECS/Fargate agents perform supported startup operations such as image pulls and log delivery. The task role supplies credentials for application code calling AWS APIs after startup.", "execution", "role"),
+      note("Fargate tasks still need a network design", "A Fargate task uses awsvpc networking and a task network interface. Its subnets and security groups must permit the intended image, log, secret and application paths; managed compute does not remove those dependencies.", "network"),
+    ],
+    setup: [
+      note("Define the container contract", "Record the image artifact, startup command, listening port, resource requirements and health behavior. Test shutdown handling and distinguish a process that is running from an application that is ready to receive requests.", "tasks"),
+      note("Create two deliberately scoped roles", "Grant the execution role startup permissions and the task role the application's downstream operations. When using secret injection or log drivers, verify the required startup permissions without granting those permissions to every application container unnecessarily.", "execution", "role"),
+      note("Validate the chosen subnet path", "For Fargate, check routes or endpoints needed for image retrieval and other startup dependencies. Test from the actual private/public subnet design instead of assuming that a public subnet automatically gives a task internet connectivity.", "network"),
+      note("Rehearse a failed service deployment", "For a supported rolling ECS deployment, enable and test the deployment circuit breaker and chosen rollback behavior. Confirm that there is a previously completed deployment to return to, and inspect service events for the failure cause.", "deployment"),
+    ],
+    configuration: [
+      setting("Task CPU and memory", "Choose a supported combination for the launch type, operating system and application's measured resource use.", "A syntactically valid task definition can still be operationally undersized. Observe out-of-memory exits and startup pressure before increasing desired task count.", "tasks"),
+      setting("taskRoleArn and executionRoleArn", "Use separate role ARNs for application AWS calls and ECS/Fargate startup operations.", "Changing the wrong role will not fix the failed boundary. Keep the permissions scoped to the artifacts, logs, secrets and resources actually required.", "execution", "role"),
+      setting("Deployment circuit breaker", "Enable failure detection and optional rollback for a supported ECS rolling deployment.", "Rollback needs a deployment in COMPLETED state. Circuit-breaker status is useful evidence, but the application still needs meaningful health checks and a compatible data-migration plan.", "deployment"),
+    ],
+    security: [
+      note("Do not distribute host-level credentials", "Have application SDKs use the task role rather than baked access keys or an unnecessarily powerful shared host role. Review isolation carefully for EC2-backed tasks because containers are not a general security boundary against a compromised host.", "role"),
+      note("Scope startup secrets separately", "When the task definition references secrets for injection, grant the documented execution-role retrieval and encryption permissions. Avoid literal secret values in task-definition environment variables, release output or container startup logs.", "execution"),
+    ],
+    example: {
+      title: "A minimal Linux Fargate task-definition shape",
+      language: 'json',
+      code: '{\n  "family": "orders-api",\n  "requiresCompatibilities": ["FARGATE"],\n  "networkMode": "awsvpc",\n  "cpu": "512",\n  "memory": "1024",\n  "executionRoleArn": "arn:aws:iam::111122223333:role/orders-execution",\n  "taskRoleArn": "arn:aws:iam::111122223333:role/orders-application",\n  "containerDefinitions": [{\n    "name": "api",\n    "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/orders-api:release-1042",\n    "essential": true,\n    "portMappings": [{"containerPort": 8080}]\n  }]\n}',
+      explanation: "This illustrative task definition uses placeholder roles and an image reference. It does not define the service, subnets, security groups, log configuration or load-balancer health contract. Verify that the actual image architecture and platform are compatible.",
+      checks: ["The task starts using its execution role, and application AWS calls resolve to the separate task role.", "A service update explicitly selects the intended revision and reports healthy tasks before the release is accepted."],
+      sourceIds: ['tasks', 'execution', 'role', 'network', 'parameters'],
+    },
+    troubleshooting: [
+      fault("The task fails before the application starts", "Image retrieval, secret retrieval or another startup dependency is inaccessible.", "Read stopped-task reasons and compare execution-role permissions with subnet connectivity.", "Repair the exact startup path instead of changing the application's business permissions.", "execution", "network"),
+      fault("The container runs but downstream AWS calls are denied", "The application task role lacks the required action or the SDK is using unexpected credentials.", "Identify the application's effective caller and denied resource.", "Correct the task-role permission or credential-provider configuration while retaining a negative access test.", "role"),
+      fault("A failed rollout does not return to the old version", "Rollback was not enabled or no completed deployment is available.", "Inspect circuit-breaker settings and deployment states in service events.", "Restore a known revision through the supported service update path and fix the release failure before retrying.", "deployment"),
+    ],
+    pitfalls: [
+      note("Desired count is not readiness", "A service can be trying to maintain its target count while replacement tasks repeatedly fail. Observe healthy capacity, pending/stopped tasks and deployment events rather than treating the desired number as achieved.", "deployment"),
+      note("Managed compute does not grant egress", "An awsvpc network interface follows its subnet and security controls. Image pulls and secret/log delivery need their own working paths even if the application's incoming load-balancer path is correct.", "network"),
+    ],
+    sources: [
+      source('tasks', 'ECS task definitions and container configuration', 'https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html'),
+      source('execution', 'ECS task execution role and startup permissions', 'https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html'),
+      source('role', 'ECS application task role and isolation boundaries', 'https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html'),
+      source('deployment', 'ECS deployment circuit breaker and rollback prerequisites', 'https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html'),
+      source('network', 'Fargate task networking and dependency paths', 'https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-task-networking.html'),
+      source('parameters', 'Fargate task-definition fields and CPU/memory combinations', 'https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html'),
+    ],
+  },
+];

@@ -12,6 +12,8 @@ import ServicePracticePanel from './learning/ServicePracticePanel';
 import ServiceConfigurationReference from './ServiceConfigurationReference';
 import ServiceDeepDivePanel from './ServiceDeepDivePanel';
 import {getServiceDeepDive} from './serviceDeepDives';
+import ServiceHandbookPanel from './ServiceHandbookPanel';
+import {getServiceHandbook, getServiceHandbookSearchText} from './serviceHandbooks';
 import './serviceLibrary.css';
 
 interface Props {
@@ -34,9 +36,10 @@ export default function ServiceLibrary({exam, selected, onOpen, onAdd, onChapter
   const examIds = new Set((exam === 'DVA-C02' ? serviceCatalog : c03CanvasCatalog).map(s => s.id));
   const metadata = service ? getServiceLearningMetadata(service.id) : undefined;
   const guide = service ? getServiceDeepDive(service.id) : undefined;
+  const handbook = service ? getServiceHandbook(service.id) : undefined;
   const filtered = canvasCatalog.filter(s => {
     const extra = getServiceDeepDive(s.id);
-    const text = [s.id, s.name, s.purpose, extra?.mentalModel, extra?.decision.useWhen].join(' ').toLowerCase();
+    const text = [s.id, s.name, s.purpose, extra?.mentalModel, extra?.decision.useWhen, getServiceHandbookSearchText(s.id)].join(' ').toLowerCase();
     return (category === 'all' || s.category === category) && (scope === 'all' || (scope === 'exam' ? examIds.has(s.id) : !examIds.has(s.id))) && text.includes(deferredQuery);
   });
   const hasFilters = !!query || category !== 'all' || scope !== 'all';
@@ -54,18 +57,19 @@ export default function ServiceLibrary({exam, selected, onOpen, onAdd, onChapter
       <button className="atlas-back" onClick={() => onOpen()}><ArrowLeft size={16} aria-hidden="true"/> All service references</button>
       <header className="atlas-detail-hero">
         <div className="atlas-detail-icon"><ServiceIcon serviceId={service.id} name={service.name} size={64}/></div>
-        <div><span className="atlas-eyebrow">{service.category}</span><h1 tabIndex={-1} ref={heading}>{service.name}</h1><p>{service.purpose}</p><div className="atlas-detail-meta"><span>{examIds.has(service.id) ? exam + ' named service' : 'Additional / legacy reference'}</span><span>Field notes + technical reference</span></div></div>
+        <div><span className="atlas-eyebrow">{service.category}</span><h1 tabIndex={-1} ref={heading}>{service.name}</h1><p>{service.purpose}</p><div className="atlas-detail-meta"><span>{examIds.has(service.id) ? exam + ' named service' : 'Additional / legacy reference'}</span><span>Implementation handbook</span>{handbook && <span>{handbook.troubleshooting.length} diagnostic playbooks</span>}</div></div>
       </header>
       <div className="atlas-reading-layout">
         <aside className="atlas-toc"><span className="atlas-eyebrow">IN THIS GUIDE</span><nav aria-label="On this service page">{[
-          ['guide-decision', '01', 'Service decisions'], ['guide-scenario', '02', 'Worked scenario'], ['guide-cost', '03', 'Cost & operations'],
-          ['guide-reference', '04', 'Technical reference'], ['guide-configuration', '05', 'Configuration'], ['guide-practice', '06', 'Practice & compare'],
+          ['guide-decision', '01', 'Service decisions'], ['guide-build', '02', 'Build & configure'], ['guide-diagnose', '03', 'Example & troubleshoot'],
+          ['guide-scenario', '04', 'Worked scenario'], ['guide-cost', '05', 'Cost & operations'],
+          ['guide-reference', '06', 'Technical reference'], ['guide-configuration', '07', 'Configuration reference'], ['guide-practice', '08', 'Practice & compare'],
         ].map(([id, number, label]) => <button key={id} onClick={() => jumpTo(id)}><span>{number}</span>{label}</button>)}</nav><div className="atlas-toc-note"><BookOpen size={19} aria-hidden="true"/><p>Read first. Then connect the ideas in your architecture.</p><small>Reading leaves your saved canvas unchanged.</small></div><button className="atlas-add" onClick={() => onAdd(service.id)}>Add or select in architecture</button></aside>
         <div className="atlas-reading-main">
-          {guide && <ServiceDeepDivePanel key={service.id} guide={guide} onService={onOpen}/>}
-          <section className="atlas-reference-section"><div className="guide-section-heading"><span className="guide-number">04</span><div><span className="guide-kicker">GO DEEPER</span><h2 id="guide-reference" tabIndex={-1}>Technical reference</h2></div></div><ServiceDetailPanel serviceId={service.id}/></section>
-          <section className="atlas-reference-section"><div className="guide-section-heading"><span className="guide-number">05</span><div><span className="guide-kicker">CONNECT THE SETTINGS</span><h2 id="guide-configuration" tabIndex={-1}>Configuration reference</h2></div></div><ServiceConfigurationReference key={service.id} serviceId={service.id}/></section>
-          <section className="atlas-reference-section"><div className="guide-section-heading"><span className="guide-number">06</span><div><span className="guide-kicker">CHECK YOUR UNDERSTANDING</span><h2 id="guide-practice" tabIndex={-1}>Practice & compare</h2></div></div>
+          {guide && <ServiceDeepDivePanel key={service.id} guide={guide} onService={onOpen}>{handbook && <ServiceHandbookPanel handbook={handbook}/>}</ServiceDeepDivePanel>}
+          <section className="atlas-reference-section"><div className="guide-section-heading"><span className="guide-number">06</span><div><span className="guide-kicker">GO DEEPER</span><h2 id="guide-reference" tabIndex={-1}>Technical reference</h2></div></div><ServiceDetailPanel serviceId={service.id}/></section>
+          <section className="atlas-reference-section"><div className="guide-section-heading"><span className="guide-number">07</span><div><span className="guide-kicker">CONNECT THE SETTINGS</span><h2 id="guide-configuration" tabIndex={-1}>Configuration reference</h2></div></div><ServiceConfigurationReference key={service.id} serviceId={service.id}/></section>
+          <section className="atlas-reference-section"><div className="guide-section-heading"><span className="guide-number">08</span><div><span className="guide-kicker">CHECK YOUR UNDERSTANDING</span><h2 id="guide-practice" tabIndex={-1}>Practice & compare</h2></div></div>
             <details className="service-study-practice"><summary>Try a standalone service exercise</summary><ServicePracticePanel key={service.id} serviceId={service.id} onOpenLab={onOpenLab}/>{onPractice && <p>These preview exercises have separate local state. <button onClick={() => onPractice(service.id)}>Practice with saved history</button></p>}</details>
             {metadata && <section className="service-learning-outcomes"><h3>Apply this service</h3><p>{metadata.focus}</p><ul>{metadata.learningOutcomes.map(outcome => <li key={outcome}>{outcome}</li>)}</ul></section>}
             <ServiceComparisons serviceId={service.id} onService={onOpen}/>
@@ -79,13 +83,13 @@ export default function ServiceLibrary({exam, selected, onOpen, onAdd, onChapter
 
   return <section className="service-library atlas-library">
     <header className="atlas-hero">
-      <div><span className="atlas-eyebrow"><span/> THE AWS FIELD GUIDE</span><h1 ref={heading} tabIndex={-1} aria-label="Service reference library">Service reference<br/><span>library</span></h1><p>Understand what each service does, when to choose it, and what to check before you build.</p><div className="atlas-hero-footnote"><BookOpen size={16} aria-hidden="true"/> Read. Compare. Put the pieces together.</div></div>
-      <div className="atlas-index-card"><div className="atlas-index-heading"><span>YOUR REFERENCE SHELF</span><Layers size={20} aria-hidden="true"/></div><div className="atlas-index-count"><strong>{canvasCatalog.length}</strong><span>service guides<br/>in one place</span></div><div className="atlas-index-topics"><span><Check size={15} aria-hidden="true"/> Decision guides</span><span><Check size={15} aria-hidden="true"/> Worked scenarios</span><span><Check size={15} aria-hidden="true"/> Cost & operations</span></div><small>{categories.length} categories · {examIds.size} named in {exam}</small></div>
+      <div><span className="atlas-eyebrow"><span/> THE AWS FIELD GUIDE</span><h1 ref={heading} tabIndex={-1} aria-label="Service reference library">Service reference<br/><span>library</span></h1><p>Understand how each service works, choose its settings, and trace failures with practical examples.</p><div className="atlas-hero-footnote"><BookOpen size={16} aria-hidden="true"/> Read. Compare. Put the pieces together.</div></div>
+      <div className="atlas-index-card"><div className="atlas-index-heading"><span>YOUR REFERENCE SHELF</span><Layers size={20} aria-hidden="true"/></div><div className="atlas-index-count"><strong>{canvasCatalog.length}</strong><span>service guides<br/>in one place</span></div><div className="atlas-index-topics"><span><Check size={15} aria-hidden="true"/> Setup & settings</span><span><Check size={15} aria-hidden="true"/> Code examples</span><span><Check size={15} aria-hidden="true"/> Troubleshooting</span></div><small>{categories.length} categories · {examIds.size} named in {exam}</small></div>
     </header>
     <div className="atlas-library-tools"><div className="reference-tool-tabs atlas-tabs" role="group" aria-label="Service library tools">{tools.map(({id, label, Icon}) => <button key={id} aria-pressed={tool === id} onClick={() => setTool(id)}><Icon size={17} aria-hidden="true"/>{label}</button>)}</div><span className="atlas-reading-note">Reading does not change your architecture.</span></div>
     {tool === 'compare' ? <ServiceComparisons onService={onOpen}/> : tool === 'glossary' ? <LearningGlossary englishOnly/> : <>
       <div className="service-library-filters atlas-filters">
-        <label className="atlas-search-label">Find a service<div><Search size={19} aria-hidden="true"/><input type="search" aria-label="Search service references" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search a service or use case…"/></div></label>
+        <label className="atlas-search-label">Find a service<div><Search size={19} aria-hidden="true"/><input type="search" aria-label="Search service references" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search a service, setting, or symptom…"/></div></label>
         <label>Category<select value={category} onChange={e => setCategory(e.target.value)}><option value="all">All categories</option>{categories.map(c => <option key={c}>{c}</option>)}</select></label>
         <label>Exam scope<select value={scope} onChange={e => setScope(e.target.value)}><option value="all">All {canvasCatalog.length} references</option><option value="exam">{exam} named services</option><option value="additional">Additional references</option></select></label>
       </div>

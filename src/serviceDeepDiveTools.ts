@@ -156,7 +156,7 @@ export const toolsDeepDives: ServiceDeepDive[] = [
   },
   {
     serviceId: 'codepipeline',
-    mentalModel: 'A pipeline moves one source revision through stages and actions using artifacts. It coordinates build and deployment services; it is not itself the build environment or application runtime.',
+    mentalModel: 'A pipeline moves a release candidate through stages and actions using artifacts; an execution can include revisions from multiple source actions. It coordinates build and deployment services rather than acting as the build environment or application runtime.',
     decision: {
       useWhen: 'A release needs ordered source, test, approval and deployment steps with traceable execution state.',
       avoidWhen: 'The task is a single local compilation or a business transaction workflow unrelated to software delivery.',
@@ -354,7 +354,7 @@ export const toolsDeepDives: ServiceDeepDive[] = [
   },
   {
     serviceId: 'bedrock',
-    mentalModel: 'Bedrock provides managed model inference; the application still owns conversation state, output handling and authorization of requested business actions. A tool request is data for the application to evaluate.',
+    mentalModel: 'Bedrock provides managed model inference through several API contracts. In a Converse client-side tool workflow, the application manages conversation messages, validates proposed actions and executes authorized tools. Other paths, including Responses server-side tools, have different state and execution contracts; business authorization remains an application responsibility.',
     decision: {
       useWhen: 'An application needs a supported managed model through an inference contract such as Converse.',
       avoidWhen: 'The task is a deterministic calculation or a business rule that must always produce a provable exact answer without a generative component.',
@@ -362,13 +362,13 @@ export const toolsDeepDives: ServiceDeepDive[] = [
     },
     walkthrough: {
       title: 'Evaluate a customer-support answer path',
-      steps: ['Choose a supported model and define success, refusal and unavailable-service outcomes.', 'Provide only the customer context the requester is authorized to use.', 'Validate any proposed tool arguments and execute permitted lookups through application code.', 'Evaluate the final answer against known cases, including fabricated identifiers and missing evidence.'],
+      steps: ['Choose a supported model and define success, refusal and unavailable-service outcomes.', 'Provide only the customer context the requester is authorized to use.', 'For the Converse client-side tool path, validate proposed arguments and execute only permitted lookups through application code.', 'Evaluate the final answer against known cases, including fabricated identifiers and missing evidence.'],
       expectedOutcome: 'The application returns a bounded answer or explicit fallback, with a measurable quality and latency record.',
       failureMode: 'A syntactically valid response is assumed factually correct, or a model-generated tool request bypasses application authorization.',
     },
     costDrivers: ['Model-specific input/output usage, modality, Region and selected inference mode.', 'Long histories, repeated tool rounds, guardrails and supporting retrieval services add usage; budget for the full request workflow.'],
     productionChecks: ['Check model-specific parameters and capabilities before switching models behind Converse.', 'Test output validation, throttling, interruption and data-retention settings with representative cases.'],
-    sources: [source('Converse application contract', 'https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html'), source('Bedrock pricing dimensions', 'https://aws.amazon.com/bedrock/pricing/')],
+    sources: [source('Converse application contract', 'https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html'), source('Client-side and server-side tool execution', 'https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html'), source('Bedrock pricing dimensions', 'https://aws.amazon.com/bedrock/pricing/')],
   },
   {
     serviceId: 'agentcore',
@@ -384,7 +384,7 @@ export const toolsDeepDives: ServiceDeepDive[] = [
       expectedOutcome: 'Every tool operation has an explicit identity and authorization boundary, and uncertain side effects have a recovery path.',
       failureMode: 'A powerful runtime role or shared memory lets the agent act outside the caller’s intended business permissions.',
     },
-    costDrivers: ['Runtime CPU and memory consumption follow their documented metering rules.', 'Memory, Gateway, other enabled AgentCore components, model inference and telemetry contribute separate usage.'],
+    costDrivers: ['Runtime pricing depends on compute type: microVM resource consumption or instance cost plus a management fee.', 'Memory, Gateway, other enabled AgentCore components, model inference and telemetry contribute separate usage.'],
     productionChecks: ['Test user/session isolation and tool authorization independently from prompt instructions.', 'Choose only required components and inspect component-specific limits, pricing and Region support.'],
     sources: [source('AgentCore modular capabilities', 'https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/what-is-bedrock-agentcore.html'), source('AgentCore component pricing', 'https://aws.amazon.com/bedrock/agentcore/pricing/')],
   },
@@ -402,7 +402,7 @@ export const toolsDeepDives: ServiceDeepDive[] = [
       expectedOutcome: 'The user can distinguish source-backed findings, proposed changes and actions confirmed by the target system.',
       failureMode: 'Adversarial text in connected content is treated as a new instruction, or a narrated action is mistaken for a completed external change.',
     },
-    costDrivers: ['Selected subscription plan and licensed users.', 'Enterprise infrastructure and optional analytics or other capability usage can add fees; verify the exact selected plan.'],
+    costDrivers: ['Selected subscription plan and licensed users.', 'Plan-specific infrastructure fees and optional analytics or other capability usage can add charges; verify the selected plan.'],
     productionChecks: ['Review connector access, data egress and the identity used by each action.', 'Test human oversight and source-grounding behavior against an intentionally misleading document.'],
     sources: [source('Quick capabilities and product identity', 'https://docs.aws.amazon.com/quick/latest/userguide/what-is.html'), source('AI and agent security boundaries', 'https://docs.aws.amazon.com/quick/latest/userguide/sec-agentic-security.html'), source('Quick subscription and capability pricing', 'https://aws.amazon.com/quick/pricing/')],
   },

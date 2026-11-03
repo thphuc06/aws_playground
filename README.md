@@ -5,6 +5,13 @@ bilingual worked cases, nine requirement-based comparisons, a 34-term EN/VI
 glossary and three guided learning paths. Opening a reference never changes the
 architecture. Reader links, bookmarks and history keep the selected exam/chapter.
 
+Each of the 58 services also has an English implementation handbook: operating
+model, setup path, configuration trade-offs, security boundaries, a copyable
+example and three diagnostic playbooks. References sit beside the claims they
+support. Service-library search includes settings and failure symptoms. See
+[the handbook and appearance update](docs/service-handbooks-and-appearance.md)
+for the source-review scope and verification evidence.
+
 Practice now uses stable question/revision IDs and resumable browser-local
 sessions. The bank retains all 153 earlier items and adds 144 original scenarios:
 216 primary-skill questions cover the 72 C03 skills with three different contexts
@@ -43,9 +50,11 @@ receive midpoint handles after release. Escape restores the pre-drag route. Conn
 Connection configuration. Automatic wires reroute when their endpoints move;
 unrelated wires stay put. Invalid drops preserve the existing connection.
 
-Appearance: use **Theme → Light / Dark / System** on the top bar. The preference
-persists in this browser. System follows OS changes; canvas, configuration panels
-and the JSON/YAML editor share the selected appearance.
+Appearance: choose **Slate / Plum / Forest** and **Light / Dark / System** on the
+top bar. Slate is the neutral default; Forest dark uses brighter, less saturated
+surfaces. Palette and mode persist independently in this browser. System follows
+OS changes; canvas, configuration panels and the JSON/YAML editor share the
+selected appearance.
 
 Delivery preference and release checks: [AGENTS.md](AGENTS.md).
 Next implementation batches from browser/code observations:

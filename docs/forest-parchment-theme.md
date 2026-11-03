@@ -1,5 +1,9 @@
 # Forest & Parchment theme
 
+Historical record of the first Forest palette. The later
+[handbook and appearance update](service-handbooks-and-appearance.md) adds Slate
+and Plum and revises Forest dark for readability; its tokens supersede this table.
+
 The selected theme pairs warm paper surfaces with forest-green navigation and
 actions, plus restrained copper highlights. Dark mode uses deep forest surfaces
 and pale sage actions. This replaces the indigo service-library preview and

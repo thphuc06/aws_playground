@@ -1,0 +1,479 @@
+{
+  "date": "2026-11-03",
+  "services": 58,
+  "handbookWords": 46194,
+  "earlierFieldNoteWords": 11742,
+  "wordCountMethod": "Whitespace-separated words in prose, titles and examples; source records, reference IDs and service IDs excluded.",
+  "sourceReferences": 303,
+  "uniqueSourceUrls": 302,
+  "setupSteps": 232,
+  "configurationDecisions": 174,
+  "diagnosticPlaybooks": 174,
+  "examples": 58,
+  "perService": [
+    {
+      "serviceId": "lambda",
+      "words": 754,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "sqs",
+      "words": 791,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "dynamodb",
+      "words": 771,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "eventbridge",
+      "words": 747,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "appsync",
+      "words": 821,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "sns",
+      "words": 738,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "step-functions",
+      "words": 787,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "ec2",
+      "words": 761,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "elastic-beanstalk",
+      "words": 741,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "aurora",
+      "words": 803,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "rds",
+      "words": 757,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "elasticache",
+      "words": 806,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "ebs",
+      "words": 797,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "efs",
+      "words": 779,
+      "sourceCount": 7,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "s3",
+      "words": 758,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "athena",
+      "words": 756,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "kinesis",
+      "words": 765,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "opensearch",
+      "words": 762,
+      "sourceCount": 7,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "ecr",
+      "words": 771,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "ecs",
+      "words": 777,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "acm",
+      "words": 763,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "private-ca",
+      "words": 752,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "glacier",
+      "words": 764,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "cloudtrail",
+      "words": 762,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "cloudwatch",
+      "words": 738,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "cloudwatch-logs",
+      "words": 767,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "eks",
+      "words": 776,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "secrets-manager",
+      "words": 720,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "waf",
+      "words": 737,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "privatelink",
+      "words": 733,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "api",
+      "words": 770,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "cloudfront",
+      "words": 753,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "elb",
+      "words": 754,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "route53",
+      "words": 777,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "vpc",
+      "words": 779,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "iam",
+      "words": 868,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "sts",
+      "words": 787,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "kms",
+      "words": 786,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "cognito",
+      "words": 745,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "amplify",
+      "words": 892,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "cloudshell",
+      "words": 841,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "codeartifact",
+      "words": 853,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "codebuild",
+      "words": 854,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "codedeploy",
+      "words": 885,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "codepipeline",
+      "words": 879,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "xray",
+      "words": 828,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "q-developer",
+      "words": 875,
+      "sourceCount": 7,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "appconfig",
+      "words": 836,
+      "sourceCount": 4,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "cdk",
+      "words": 833,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "cloudformation",
+      "words": 837,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "cli",
+      "words": 830,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "systems-manager",
+      "words": 818,
+      "sourceCount": 7,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "firehose",
+      "words": 806,
+      "sourceCount": 7,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "bedrock",
+      "words": 903,
+      "sourceCount": 7,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "agentcore",
+      "words": 859,
+      "sourceCount": 7,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "quick",
+      "words": 884,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "kiro",
+      "words": 858,
+      "sourceCount": 5,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    },
+    {
+      "serviceId": "sam",
+      "words": 850,
+      "sourceCount": 6,
+      "setupSteps": 4,
+      "configurationDecisions": 3,
+      "diagnosticPlaybooks": 3
+    }
+  ]
+}

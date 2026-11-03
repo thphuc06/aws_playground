@@ -39,7 +39,7 @@ export const coreDeepDives: ServiceDeepDive[] = [
   },
   {
     serviceId: 'sqs',
-    mentalModel: 'A queue owns the message until deletion. Receiving gives a worker a temporary processing opportunity through visibility timeout; it does not transfer permanent ownership or prove that the business action completed.',
+    mentalModel: 'SQS retains a message until deletion or retention expiry; receiving it does not remove it. Visibility timeout gives a worker a temporary processing opportunity, not proof that the business action completed.',
     decision: {
       useWhen: 'Use SQS when jobs need buffering and consumers should control their own processing rate.',
       avoidWhen: 'If independent subscribers each need a copy, compare SNS fan-out. If consumers need a retained stream to replay independently, compare Kinesis.',
@@ -48,10 +48,10 @@ export const coreDeepDives: ServiceDeepDive[] = [
     walkthrough: {
       title: 'Recover a worker that crashes after charging an order',
       steps: [
-        'Use an order operation ID to make the external business action idempotent.',
+        'Use the order operation ID as the external provider’s idempotency key, or reconcile uncertain outcomes before retrying.',
         'Receive the job and record processing evidence without deleting it before completion.',
         'Simulate a crash after the action, then let the message become visible again.',
-        'On redelivery, consult the durable operation record and acknowledge the completed job without repeating the charge.',
+        'On redelivery, inspect the durable operation record; if local completion was never recorded, reconcile the provider’s outcome before retrying or acknowledging the job.',
       ],
       expectedOutcome: 'A retry repairs acknowledgement without duplicating the business side effect.',
       failureMode: 'Visibility expires before processing completes, allowing overlapping attempts; a long timeout can also delay recovery after a crash.',
@@ -103,14 +103,14 @@ export const coreDeepDives: ServiceDeepDive[] = [
   },
   {
     serviceId: 'eventbridge',
-    mentalModel: 'An event bus routes a statement that something happened. Rule matching, delivery to a target and successful business processing are three separate outcomes with different evidence.',
+    mentalModel: 'For rule-based EventBridge buses, rule matching, delivery to a target and successful business processing are three separate outcomes. The Classic-bus scenario below does not describe the newer Custom Event Bus subscriber model.',
     decision: {
       useWhen: 'Use event routing to let producers publish domain events without maintaining every consumer address.',
       avoidWhen: 'For a worker-controlled backlog, add or choose SQS. For an explicitly ordered business process with compensating steps, compare Step Functions.',
       alternativeIds: ['sqs', 'step-functions'],
     },
     walkthrough: {
-      title: 'Recover a rule whose target permission was removed',
+      title: 'Recover a Classic-bus rule whose target permission was removed',
       steps: [
         'Publish a synthetic order event and check whether it matched the intended rule.',
         'Inspect failed delivery and the target DLQ, including the reported error context.',
@@ -130,6 +130,7 @@ export const coreDeepDives: ServiceDeepDive[] = [
     ],
     sources: [
       source('EventBridge target dead-letter queues', 'https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-rule-dlq.html'),
+      source('Rule-based buses and the Custom Event Bus model', 'https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-bus.html'),
       source('EventBridge pricing by feature', 'https://aws.amazon.com/eventbridge/pricing/'),
     ],
   },
@@ -282,7 +283,7 @@ export const coreDeepDives: ServiceDeepDive[] = [
     },
     costDrivers: [
       'Beanstalk itself has no additional service charge; the environment’s EC2, load balancing, storage and other resources are billed.',
-      'Additional deployment capacity, retained environments and optional CloudWatch logs or metrics increase the total.',
+      'Additional deployment capacity, retained environments and optional CloudWatch logs or metrics increase the total. Cluster mode also incurs EKS cluster and EKS Auto Mode management charges.',
     ],
     productionChecks: [
       'Confirm that the selected environment supports the deployment policy; immutable deployment is a Standard-specific choice.',
@@ -434,8 +435,8 @@ export const coreDeepDives: ServiceDeepDive[] = [
       steps: [
         'Create an application-specific access-point design with the intended root directory and POSIX identity.',
         'Verify a reachable mount target and its security-group rules.',
-        'Mount using the intended access point with encryption in transit and the required IAM authorization.',
-        'Test both allowed file operations and attempts to access another application’s directory.',
+        'Mount through the intended access point with encryption in transit and IAM authorization; enforce the intended principal and access point in the filesystem policy so alternate mounts cannot bypass that boundary.',
+        'Test allowed file operations, forbidden directories, and direct or alternate access-point mounts under the final filesystem policy.',
       ],
       expectedOutcome: 'Each application sees its intended filesystem subtree through a permitted network path.',
       failureMode: 'A correctly configured access point still times out because no mount target is reachable, or POSIX permissions reject file access.',
@@ -762,7 +763,7 @@ export const coreDeepDives: ServiceDeepDive[] = [
       failureMode: 'All registered targets become unhealthy and ALB fails open; health checks must not be used as a security boundary.',
     },
     costDrivers: [
-      'Running load-balancer time and the selected family’s capacity units are separate billing dimensions.',
+      'ALB, NLB and Gateway Load Balancer charge for running time and their respective capacity units; Classic Load Balancer uses running time and processed data volume.',
       'Connection patterns, processed traffic and enabled routing behavior influence capacity usage; transfer and related resources may add costs.',
     ],
     productionChecks: [
@@ -921,7 +922,7 @@ export const coreDeepDives: ServiceDeepDive[] = [
         'Retest with the intended role and ensure an unrelated role remains denied.',
       ],
       expectedOutcome: 'The storage and cryptographic authorization boundaries are both understood.',
-      failureMode: 'The caller can retrieve an object but lacks the required key authorization, or the key was disabled while encrypted data still depends on it.',
+      failureMode: 'The caller has object-read permission but the encrypted read is denied because KMS authorization is missing, or the key was disabled while encrypted data still depends on it.',
     },
     costDrivers: [
       'Customer-managed keys have recurring key charges; key ownership and rotation choices affect which charges apply.',

@@ -50,7 +50,7 @@ try {
       results.push({page: 'lambda', theme, width, horizontalOverflow: false});
       if (width === 375) await page.screenshot({path: `${folder}/lambda-mobile-${theme}.jpg`, type: 'jpeg', quality: 90});
     }
-    await page.getByRole('button', {name: /03 Cost & operations/}).click();
+    await page.getByRole('button', {name: /Cost & operations/}).click();
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'guide-cost');
     await page.screenshot({path: `${folder}/lambda-cost-${theme}.jpg`, type: 'jpeg', quality: 90});
     await page.getByRole('button', {name: 'All service references', exact: true}).click();
