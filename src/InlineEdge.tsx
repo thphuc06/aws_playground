@@ -2,9 +2,11 @@ import {curveControls,cubicPoint,moveCurveGrip,cubicPath} from './edgeGeometry';
 import {wireControls,moveWireControl,removeWireControl,closestPointOnWire,snapWireControl,type WireAlignment,type WireControl} from './orthogonalEditing';
 import {anchorRoute} from './connectionInteraction';
 import {manualRoute,routePath,MAX_EDGE_BENDS,type EdgeLayout,type Point} from './connectionRouting';
+import {createPortal} from "react-dom";
+import {CornerUpRight,Spline,RotateCcw,Trash2} from "lucide-react";
 import {useEffect,useRef,useState} from 'react';
 import {BaseEdge,EdgeLabelRenderer,useReactFlow,useViewport,useStore,EdgeProps,Edge} from '@xyflow/react';
-export type InlineEdgeData={text:string;editing:boolean;onSelect?:(id:string)=>boolean;onReconnect?:(id:string,end:'source'|'target',point:Point)=>void;onPickEndpoint?:(id:string,end:'source'|'target')=>void;showLabel?:boolean;hideLabel?:boolean;muted?:boolean;lane?:number;route?:Point[];waypoints?:Point[];curve?:boolean;curvature?:number;curveOffsets?:Point[];onCurve?:(id:string,offsets:Point[]|undefined)=>void;onBends?:(id:string,points:Point[])=>void;routeLayout?:EdgeLayout;onRestoreRoute?:(id:string,layout:EdgeLayout|undefined)=>void;onStyle?:(id:string,curve:boolean)=>void;onDelete?:(id:string)=>void;onEdit:(id:string)=>void;onChange:(id:string,value:string)=>void;onCommit:(id:string,restoreFocus?:boolean)=>void;onCancel:(id:string)=>void};
+export type InlineEdgeData={text:string;editing:boolean;toolsHost?:HTMLElement|null;connectionName?:string;onSelect?:(id:string)=>boolean;onReconnect?:(id:string,end:'source'|'target',point:Point)=>void;onPickEndpoint?:(id:string,end:'source'|'target')=>void;showLabel?:boolean;hideLabel?:boolean;muted?:boolean;lane?:number;route?:Point[];waypoints?:Point[];curve?:boolean;curvature?:number;curveOffsets?:Point[];onCurve?:(id:string,offsets:Point[]|undefined)=>void;onBends?:(id:string,points:Point[])=>void;routeLayout?:EdgeLayout;onRestoreRoute?:(id:string,layout:EdgeLayout|undefined)=>void;onStyle?:(id:string,curve:boolean)=>void;onDelete?:(id:string)=>void;onEdit:(id:string)=>void;onChange:(id:string,value:string)=>void;onCommit:(id:string,restoreFocus?:boolean)=>void;onCancel:(id:string)=>void};
 
 type Grip={key:number;point:Point;control?:WireControl;curveIndex?:number};
 type Gesture={grip:Grip;route:Point[];controls:[Point,Point];mode:'pointer'|'keyboard';pointerId?:number;initialWaypoints?:Point[];initialCurveOffsets?:Point[];curve:boolean;changed:boolean;initialLayout?:EdgeLayout;alignment?:WireAlignment};
@@ -66,12 +68,13 @@ export default function InlineEdge(props:EdgeProps<Edge<InlineEdgeData>>){
   onPointerCancel={()=>{suppressEndpointClick.current=true;finishEndpoint()}} onLostPointerCapture={finishEndpoint}
   onClick={event=>{event.stopPropagation();if(!suppressEndpointClick.current)data.onPickEndpoint?.(props.id,end);suppressEndpointClick.current=false}}
  >{end==='target'?'›':'○'}</button>})}</EdgeLabelRenderer>}
- {props.selected&&!data.editing&&!endpointPreview&&(!activeGrip||gesture.current?.mode==='keyboard')&&<EdgeLabelRenderer><div className="edge-inline-tools nodrag nopan" style={{transform:`translate(${labelX}px,${labelY-40/viewport.zoom}px) scale(${1/viewport.zoom}) translate(-50%,-100%)`}} onPointerDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}>
- <button aria-label="Use orthogonal line" title="Orthogonal" aria-pressed={!data.curve} onClick={()=>{finish();data.onStyle?.(props.id,false)}}>⌜</button>
- <button aria-label="Use curved line" title="Curved" aria-pressed={!!data.curve} onClick={()=>{finish();data.onStyle?.(props.id,true)}}>∿</button>
- <button aria-label="Reset connection route" title="Automatic route" onClick={()=>{finish();data.onBends?.(props.id,[]);if(data.curve)data.onCurve?.(props.id,undefined)}}>↶</button>
- <button aria-label="Delete connection" title="Delete connection" onClick={()=>data.onDelete?.(props.id)}>×</button>
- </div></EdgeLabelRenderer>}
+ {props.selected&&data.toolsHost&&createPortal(<div className="connection-tools" role="group" aria-label="Selected connection tools" onPointerDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}>
+ <span className="connection-tools-name" title={data.connectionName}><strong>Connection</strong><span>{data.connectionName??(props.source+" → "+props.target)}</span></span>
+ <button disabled={data.editing||!!endpointPreview||gesture.current?.mode==="pointer"} aria-label="Use orthogonal line" title="Orthogonal" aria-pressed={!data.curve} onClick={()=>{finish();data.onStyle?.(props.id,false)}}><CornerUpRight size={15}/><span>Orthogonal</span></button>
+ <button disabled={data.editing||!!endpointPreview||gesture.current?.mode==="pointer"} aria-label="Use curved line" title="Curved" aria-pressed={!!data.curve} onClick={()=>{finish();data.onStyle?.(props.id,true)}}><Spline size={15}/><span>Curved</span></button>
+ <button disabled={data.editing||!!endpointPreview||gesture.current?.mode==="pointer"} aria-label="Reset connection route" title="Automatic route" onClick={()=>{finish();data.onBends?.(props.id,[]);if(data.curve)data.onCurve?.(props.id,undefined)}}><RotateCcw size={15}/><span>Reset</span></button>
+ <button disabled={data.editing||!!endpointPreview||gesture.current?.mode==="pointer"} aria-label="Delete connection" title="Delete connection" className="connection-delete" onClick={()=>data.onDelete?.(props.id)}><Trash2 size={15}/><span>Delete</span></button>
+ </div>,data.toolsHost)}
  {alignment&&!data.curve&&<line className="wire-alignment-guide" aria-hidden="true" pointerEvents="none" x1={alignment.axis==='x'?alignment.value:Math.min(...(gesture.current?.route??route).map(p=>p.x))-16/viewport.zoom} x2={alignment.axis==='x'?alignment.value:Math.max(...(gesture.current?.route??route).map(p=>p.x))+16/viewport.zoom} y1={alignment.axis==='y'?alignment.value:Math.min(...(gesture.current?.route??route).map(p=>p.y))-16/viewport.zoom} y2={alignment.axis==='y'?alignment.value:Math.max(...(gesture.current?.route??route).map(p=>p.y))+16/viewport.zoom} stroke="var(--info-text)" strokeWidth={1/viewport.zoom} strokeDasharray={`${4/viewport.zoom} ${4/viewport.zoom}`}/>}
  <g className="wire-shape-hit" onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)}
   onPointerDown={event=>{if(event.button!==0||data.editing)return;event.preventDefault();event.stopPropagation();data.onSelect?.(props.id)}}
