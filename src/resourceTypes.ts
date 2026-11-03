@@ -12,3 +12,5 @@ export interface ResourceUsage {subject:'resource'|'service'|'frame';id:string;p
 export const emptyResourceRegistry=():ResourceRegistry=>({version:1,resources:[],serviceBindings:{},frameBindings:{}});
 export const emptyServiceBinding=():ServiceResourceBinding=>({subnets:[],securityGroups:[],networkInterfaces:[]});
 export const localResourceRef=(resource:Pick<CanonicalResource,'kind'|'id'>):ResourceRef=>({type:'local',kind:resource.kind,id:resource.id});
+
+export const canonicalPlacementServices=['ec2','lambda','ecs','eks','elb','rds','aurora','elasticache','efs','opensearch','elastic-beanstalk','cloudshell','codebuild','privatelink'];

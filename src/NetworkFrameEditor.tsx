@@ -1,3 +1,4 @@
+import {assessConfigurationMutation} from './configurationRepair';
 import {useEffect,useState} from 'react';
 import type {Graph} from './architectureReview';
 import type {NetworkFrame,NetworkTopology} from './networkTopology';
@@ -18,7 +19,7 @@ export function frameFields(frame:NetworkFrame):ConfigField[]{
 export default function NetworkFrameEditor({frame,graph,onSave,onDirtyChange}:{frame:NetworkFrame;graph:Graph;onSave:(network:NetworkTopology)=>boolean;onDirtyChange:(dirty:boolean)=>void}){
  const [draft,setDraft]=useState(frame),dirty=JSON.stringify(frame)!==JSON.stringify(draft);
  useEffect(()=>{onDirtyChange(dirty);return()=>onDirtyChange(false)},[dirty,onDirtyChange]);
- const network={...graph.network!,frames:graph.network!.frames.map(f=>f.id===frame.id?draft:f)},findings=networkFindings(network,graph.nodes),errors=findings.filter(f=>f.level==='error');
+ const network={...graph.network!,frames:graph.network!.frames.map(f=>f.id===frame.id?draft:f)},findings=networkFindings(network,graph.nodes),errors=assessConfigurationMutation(graph,{...graph,network},[frame.id]).blocking;
  return <div className="configuration-inspector">{frameFields(frame).map(field=><ConfigurationField key={field.key} field={field} value={draft[field.key as keyof NetworkFrame] as JsonValue|undefined} values={draft as unknown as Record<string,JsonValue>} onChange={value=>setDraft(d=>{const next={...d};if(value===undefined)delete (next as any)[field.key];else (next as any)[field.key]=value;return next})}/>)}
  {findings.map((f,i)=><p key={i} className={'config-'+f.level}>{f.detail} <a href={f.sourceUrl} target="_blank" rel="noreferrer">AWS reference ↗</a></p>)}
  <button disabled={!dirty||errors.length>0||!draft.name?.trim()} onClick={()=>onSave(network)}>Save frame</button><button disabled={!dirty} onClick={()=>setDraft(frame)}>Cancel frame edits</button><small>{dirty?'Unsaved frame changes':'Saved frame settings'}</small></div>;

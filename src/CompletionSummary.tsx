@@ -3,7 +3,7 @@ import {fingerprintGraph,type Graph} from './architectureReview';
 
 export default function CompletionSummary({audit,graph}:{audit?:CompletionAudit;graph:Graph|null}){
  if(!audit)return <p className="review-stale">This older result has no requirement-by-requirement assessment. Its schema validation does not establish completeness.</p>;
- const names=new Map([...graph?.nodes.map(n=>[n.id,n.label] as const)??[],...graph?.network?.frames.map(f=>[f.id,f.name] as const)??[],...graph?.network?.resources.map(r=>[r.id,r.name] as const)??[]]);
+ const names=new Map([...graph?.nodes.map(n=>[n.id,n.label] as const)??[],...graph?.network?.frames.map(f=>[f.id,f.name] as const)??[],...graph?.network?.resources.map(r=>[r.id,r.name] as const)??[],...graph?.network?.registry?.resources.map(r=>[r.id,r.name] as const)??[]]);
  const label=(e:DesignEvidence)=>`${names.get(e.id)??e.id}${e.fields.length?' · '+e.fields.join(', '):' · topology reference'}`;
  const count=(status:string)=>audit.checks.filter(c=>c.status===status).length;
  const stale=!!graph&&fingerprintGraph(graph)!==audit.graphFingerprint;

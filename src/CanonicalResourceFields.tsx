@@ -1,0 +1,27 @@
+import type {ConfigField,JsonValue} from './configurationTypes';
+import type {Graph} from './architectureReview';
+import {canonicalFields} from './canonicalResourceSchema';
+import {isResourceRef,expectedResourceKinds} from './resourceRegistry';
+import type {CanonicalResourceKind,ResourceRef,ResourceRegistry} from './resourceTypes';
+import ConfigurationField from './ConfigurationField';
+
+export function ResourceReferencePicker({label,value,onChange,registry,kinds,allowExternal=true}:{allowExternal?:boolean;label:string;value?:ResourceRef;onChange:(ref:ResourceRef|undefined)=>void;registry:ResourceRegistry;kinds:CanonicalResourceKind[]}){
+ const local=registry.resources.filter(r=>kinds.includes(r.kind));const selected=value?.type==='local'?value.id:value?'external':'';
+ return <div className="canonical-reference"><label>{label}<select aria-label={label} value={selected} onChange={e=>{const r=local.find(r=>r.id===e.target.value);onChange(!e.target.value?undefined:r?{type:'local',kind:r.kind,id:r.id}:{type:'external',kind:kinds[0],id:''});}}><option value="">Unspecified</option>{value?.type==='local'&&!local.some(r=>r.id===value.id)&&<option value={value.id}>Missing or incompatible: {value.id}</option>}{local.map(r=><option value={r.id} key={r.id}>{r.name} · {r.kind} · {r.id.slice(-8)}{r.context.region?' · '+r.context.region:''}{r.context.availabilityZone?' · '+r.context.availabilityZone:''}</option>)}{(allowExternal||value?.type==='external')&&<option value="external" disabled={!allowExternal}>External resource…</option>}</select></label>{value?.type==='external'&&<><label>{label} external identifier<input value={value.id} maxLength={512} onChange={e=>onChange({...value,id:e.target.value})}/></label>{kinds.length>1&&<label>{label} external kind<select value={value.kind} onChange={e=>onChange({...value,kind:e.target.value as CanonicalResourceKind})}>{kinds.map(kind=><option key={kind}>{kind}</option>)}</select></label>}<small>External identity and AWS state are unverified. No local resource is created.</small><details><summary>External reference context</summary>{(['partition','accountId','region','availabilityZone'] as const).map(key=><label key={key}>{label} {key}<input value={value.context?.[key]??''} maxLength={100} onChange={e=>{const context={...value.context};if(e.target.value)context[key]=e.target.value;else delete context[key];onChange({...value,context});}}/></label>)}</details></>}</div>;
+}
+export function ResourceReferenceList({label,values,onChange,registry,kinds}:{label:string;values:ResourceRef[];onChange:(refs:ResourceRef[])=>void;registry:ResourceRegistry;kinds:CanonicalResourceKind[]}){
+ return <fieldset className="canonical-reference-list"><legend>{label}</legend>{values.map((ref,index)=><div key={index}><ResourceReferencePicker label={label+' '+(index+1)} value={ref} registry={registry} kinds={kinds} onChange={next=>onChange(next?values.map((r,i)=>i===index?next:r):values.filter((_,i)=>i!==index))}/><button type="button" onClick={()=>onChange(values.filter((_,i)=>i!==index))}>Remove {label.toLowerCase()} {index+1}</button></div>)}<button type="button" onClick={()=>onChange([...values,{type:'external',kind:kinds[0],id:''}])}>Add {label.toLowerCase()} reference</button></fieldset>;
+}
+export default function CanonicalResourceFields({kind,values,onChange,graph}:{kind:CanonicalResourceKind;values:Record<string,JsonValue>;onChange:(values:Record<string,JsonValue>)=>void;graph:Graph}){
+ const registry=graph.network!.registry!;
+ const render=(field:ConfigField,row:Record<string,JsonValue>,set:(key:string,value:JsonValue|undefined)=>void,path=field.key):React.ReactNode=>{
+  const value=row[field.key],kinds=expectedResourceKinds(kind,path,row);
+  if(kinds)return <div key={path}>{typeof value==='string'&&value!==''?<><p>Legacy reference text: <code>{value}</code>. Select its kind and identity explicitly.</p><button onClick={()=>set(field.key,{type:'external',kind:kinds[0],id:value})}>Convert {field.label} to a typed reference</button></>:null}<ResourceReferencePicker label={field.label+' · '+path} kinds={kinds} registry={registry} value={isResourceRef(value)?value:undefined} onChange={next=>set(field.key,next as unknown as JsonValue|undefined)}/></div>;
+  if(field.kind==='table'){
+   const rows=Array.isArray(value)?value as Record<string,JsonValue>[]:[];return <details key={path} className="canonical-field-table"><summary>{field.label} · {rows.length} rows</summary><p>{field.help}</p>{rows.map((item,index)=><fieldset key={index}><legend>{field.label} {index+1}</legend>{field.itemFields?.map(child=>render(child,item,(key,next)=>{const result={...item};if(next===undefined)delete result[key];else result[key]=next;set(field.key,rows.map((r,i)=>i===index?result:r));},path+'.'+index+'.'+child.key))}<button onClick={()=>set(field.key,rows.filter((_,i)=>i!==index))}>Remove row {index+1}</button></fieldset>)}<button disabled={rows.length>=100} onClick={()=>set(field.key,[...rows,{}])}>Add {field.label.toLowerCase()} row</button></details>;
+  }
+  return <ConfigurationField key={path} field={field} path={path.slice(0,path.length-field.key.length).replaceAll('.','-')} graph={graph} value={value} values={row} onChange={next=>set(field.key,next)}/>;
+ };
+ const set=(key:string,value:JsonValue|undefined)=>{const next={...values};if(value===undefined)delete next[key];else next[key]=value;onChange(next);};
+ return <>{canonicalFields(kind).map(f=>render(f,values,set))}</>;
+}

@@ -1,0 +1,9 @@
+import type {NetworkTopology} from './networkTopology';
+import {emptyServiceBinding,type ServiceResourceBinding} from './resourceTypes';
+import {ResourceReferencePicker,ResourceReferenceList} from './CanonicalResourceFields';
+import {synchronizeResourceViews} from './resourceProjection';
+export default function CanonicalServiceNetwork({nodeId,topology,onChange}:{nodeId:string;topology:NetworkTopology;onChange:(next:NetworkTopology)=>void}){
+ const registry=topology.registry!,binding=registry.serviceBindings[nodeId]??emptyServiceBinding();
+ const set=(next:ServiceResourceBinding)=>onChange(synchronizeResourceViews({...topology,registry:{...registry,serviceBindings:{...registry.serviceBindings,[nodeId]:next}}}));
+ return <section className="canonical-service-network"><h4>Declared network placement</h4><p>These references define the network plan. Moving the diagram does not change them. Multiple subnets and interfaces stay explicit.</p><ResourceReferencePicker label="Declared VPC" registry={registry} kinds={['vpc']} value={binding.vpc} onChange={vpc=>{const next={...binding};if(vpc)next.vpc=vpc;else delete next.vpc;set(next);}}/><ResourceReferenceList label="Subnets" registry={registry} kinds={['subnet']} values={binding.subnets} onChange={subnets=>set({...binding,subnets})}/><ResourceReferenceList label="Security groups" registry={registry} kinds={['security-group']} values={binding.securityGroups} onChange={securityGroups=>set({...binding,securityGroups})}/><ResourceReferenceList label="Network interfaces" registry={registry} kinds={['network-interface']} values={binding.networkInterfaces} onChange={networkInterfaces=>set({...binding,networkInterfaces})}/><small>Save or cancel these bindings with the service configuration. Shared rule edits belong to the canonical resource library.</small></section>;
+}

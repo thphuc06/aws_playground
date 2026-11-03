@@ -1,0 +1,21 @@
+// @vitest-environment jsdom
+import React,{useState} from 'react';
+import {it,expect,afterEach,vi} from 'vitest';
+import {render,screen,fireEvent,cleanup,within} from '@testing-library/react';
+import NetworkPanel from './NetworkPanel';
+import ConfigurationInspector from './ConfigurationInspector';
+import {prepareResourceMigration} from './resourceMigration';
+import {withResourceRegistry} from './resourceProjection';
+import type {Graph} from './architectureReview';
+afterEach(()=>{cleanup();vi.unstubAllGlobals();});
+it('previews migration, creates canonical VPC/subnet records and shows dependency-aware deletion',()=>{
+ let current:Graph={version:1,nodes:[],edges:[],configs:{}};function Harness(){const [graph,setGraph]=useState(current);return <NetworkPanel graph={graph} onChange={next=>{current=next;setGraph(next);}} selectedFrame="" onSelectFrame={()=>{}}/>;}render(<Harness/>);
+ fireEvent.click(screen.getByRole('button',{name:'Preview canonical resource migration'}));expect(current.version).toBe(1);fireEvent.click(screen.getByRole('button',{name:'Apply migration with preserved recovery snapshot'}));expect(current.version).toBe(2);expect(screen.getByRole('region',{name:'Canonical resource library'})).toBeDefined();
+ fireEvent.click(screen.getByRole('button',{name:'Create canonical resource'}));fireEvent.change(screen.getByLabelText('Canonical resource name'),{target:{value:'Application VPC'}});fireEvent.change(screen.getByLabelText('CIDR'),{target:{value:'10.0.0.0/16'}});fireEvent.click(screen.getByRole('button',{name:'Save canonical resource'}));const vpc=current.network!.registry!.resources.find(r=>r.kind==='vpc')!;expect(vpc.values.cidr).toBe('10.0.0.0/16');
+ fireEvent.change(screen.getByLabelText('New resource kind'),{target:{value:'subnet'}});fireEvent.click(screen.getByRole('button',{name:'Create canonical resource'}));fireEvent.change(screen.getByLabelText('Canonical resource name'),{target:{value:'Private A'}});fireEvent.change(screen.getByLabelText('Owning network resource'),{target:{value:vpc.id}});fireEvent.change(screen.getByLabelText('CIDR'),{target:{value:'10.0.1.0/24'}});fireEvent.click(screen.getByRole('button',{name:'Save canonical resource'}));expect(current.network!.registry!.resources.find(r=>r.kind==='subnet')?.owner).toEqual({type:'local',kind:'vpc',id:vpc.id});
+ fireEvent.click(screen.getByRole('button',{name:/Application VPC.*vpc/}));fireEvent.click(screen.getByRole('button',{name:'Preview resource deletion'}));const preview=screen.getByRole('region',{name:'Resource deletion preview'});expect(within(preview).getByText(/Private A/)).toBeDefined();fireEvent.click(within(preview).getByRole('button',{name:'Cancel deletion'}));expect(current.network!.registry!.resources.some(r=>r.id===vpc.id)).toBe(true);
+});
+it('edits several canonical subnets in the actual configuration inspector without changing visual grouping',()=>{
+ const graph=prepareResourceMigration({version:1,nodes:[{id:'app',service:'ec2',label:'App',position:{x:0,y:0}}],edges:[],configs:{}}).graph,registry=graph.network!.registry!;registry.resources.push({id:'vpc',kind:'vpc',name:'VPC',context:{},values:{cidr:'10.0.0.0/16'}},{id:'sub-a',kind:'subnet',name:'Subnet A',context:{availabilityZone:'zone-a'},owner:{type:'local',kind:'vpc',id:'vpc'},values:{cidr:'10.0.1.0/24'}},{id:'sub-b',kind:'subnet',name:'Subnet B',context:{availabilityZone:'zone-b'},owner:{type:'local',kind:'vpc',id:'vpc'},values:{cidr:'10.0.2.0/24'}});const ready=withResourceRegistry(graph,registry),saved=vi.fn();render(<ConfigurationInspector service="ec2" nodeId="app" values={{}} graph={ready} onChange={saved}/>);fireEvent.click(screen.getByRole('tab',{name:'Networking'}));
+ fireEvent.click(screen.getByRole('button',{name:'Add subnets reference'}));fireEvent.change(screen.getByLabelText('Subnets 1'),{target:{value:'sub-a'}});fireEvent.click(screen.getByRole('button',{name:'Add subnets reference'}));fireEvent.change(screen.getByLabelText('Subnets 2'),{target:{value:'sub-b'}});fireEvent.click(screen.getByRole('button',{name:'Save configuration'}));expect(saved).toHaveBeenCalledOnce();const topology=saved.mock.calls[0][2];expect(topology.registry.serviceBindings.app.subnets.map((r:{id:string})=>r.id)).toEqual(['sub-a','sub-b']);expect(topology.membership).toEqual({});expect(screen.queryByLabelText('Subnet logical ID')).toBeNull();
+});

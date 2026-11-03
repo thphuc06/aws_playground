@@ -1,8 +1,10 @@
+import CanonicalServiceNetwork from './CanonicalServiceNetwork';
 import type {NetworkTopology} from './networkTopology';
 import {ownerVpc,networkEvidence} from './networkValidation';
 import ContextHelp from './ContextHelp';
 export const supportsSecurityGroups=(service:string)=>['ec2','lambda','ecs','eks','elb','rds','aurora','elasticache','efs','opensearch'].includes(service);
 export default function NetworkNodeAttachments({nodeId,topology,onChange}:{nodeId:string;topology:NetworkTopology;onChange:(next:NetworkTopology)=>void}){
+ if(topology.registry)return <CanonicalServiceNetwork nodeId={nodeId} topology={topology} onChange={onChange}/>;
  const vpc=ownerVpc(topology,topology.membership[nodeId]),groups=topology.resources.filter(r=>r.kind==='security-group');
  return <section className="configuration-field"><header><b>Shared security groups</b><ContextHelp label="Shared security groups help"><p>Select existing shared groups for this component. Rules remain on the shared resource, so editing a group affects all its assignments. Inline security-rule notes below do not create or modify these groups.</p><p>This is an architecture-level assignment. Multiple network interfaces, AWS Security Group VPC Associations and service-specific deployment details require additional review. Unknown VPC ownership is not proof of compatibility.</p><a href={networkEvidence.sg} target="_blank" rel="noreferrer">AWS security group rules ↗</a></ContextHelp></header>
  {!groups.length&&<p>Create a security group under Resources → Network & resources. It will then appear here.</p>}

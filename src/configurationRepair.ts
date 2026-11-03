@@ -15,7 +15,7 @@ export function introducedFindings(before:ConfigurationFinding[],after:Configura
 function graphFindings(graph:ConfigurationGraph):ConfigurationFinding[]{
  const nodes=graph.nodes.flatMap(node=>{const doc=graph.architecture?.nodes[node.id];return isConfigurationDocument(doc)?configurationGraphFindings(node.service,doc,graph).map(f=>({...f,resourceId:node.id,path:f.path??f.field})):[]});
  const network=networkFindings(graph.network,graph.nodes).map(f=>{
-  const ids=[...(graph.network?.frames??[]),...(graph.network?.resources??[])].map(r=>r.id).sort((a,b)=>b.length-a.length);
+  const ids=[...(graph.network?.frames??[]),...(graph.network?.resources??[]),...(graph.network?.registry?.resources??[])].map(r=>r.id).sort((a,b)=>b.length-a.length);
   return {...f,resourceId:ids.find(id=>f.field===id||f.field?.startsWith(id+'.')),path:f.path??f.field};
  });
  const shape=(graph.network?.resources??[]).flatMap(resource=>Object.entries(resource.values).flatMap(([key,value])=>{
@@ -31,11 +31,12 @@ export function assessConfigurationMutation(before:ConfigurationGraph,after:Conf
  const baseline=graphFindings(before),findings=graphFindings(after),introduced=introducedFindings(baseline,findings);
  const touched=new Set(editedNodeIds);
  for(const node of after.nodes)if(stable(before.architecture?.nodes[node.id])!==stable(after.architecture?.nodes[node.id]))touched.add(node.id);
- const oldNetwork=[...(before.network?.frames??[]),...(before.network?.resources??[])];
- for(const r of [...(after.network?.frames??[]),...(after.network?.resources??[])]){
+ const oldNetwork=[...(before.network?.frames??[]),...(before.network?.registry?.resources??before.network?.resources??[])];
+ for(const r of [...(after.network?.frames??[]),...(after.network?.registry?.resources??after.network?.resources??[])]){
   const previous=oldNetwork.find(p=>p.id===r.id);
   if(!previous||stable(networkResourceState(previous as unknown as Record<string,unknown>))!==stable(networkResourceState(r as unknown as Record<string,unknown>)))touched.add(r.id);
  }
+ for(const [id,binding]of Object.entries(after.network?.registry?.serviceBindings??{}))if(stable(before.network?.registry?.serviceBindings[id])!==stable(binding))touched.add(id);
  const newKeys=new Set(introduced.map(diagnosticKey));
  const blocking=findings.filter(f=>f.level==='error'&&(touched.has(f.resourceId??'')||!f.ruleId||newKeys.has(diagnosticKey(f))));
  return {findings,introduced,blocking,existing:findings.filter(f=>!introduced.includes(f))};

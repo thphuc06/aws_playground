@@ -5,16 +5,16 @@ const text=(v:unknown)=>typeof v==='string'&&!!v.trim()&&v.length<=3000;
 function referencesFrame(graph:Graph,frameId:string,rows:DesignEvidence[]):boolean {
  const frames=graph.network?.frames??[],ids=new Set([frameId]);
  for(let i=0;i<frames.length;i++)for(const f of frames)if(f.parentId&&ids.has(f.parentId))ids.add(f.id);
- const references=new Set([...ids,...frames.filter(f=>ids.has(f.id)).flatMap(f=>[f.availabilityZone,f.cidr].filter((v):v is string=>!!v))]);
+ const references=new Set([...ids,...Object.entries(graph.network?.registry?.frameBindings??{}).filter(([id])=>ids.has(id)).map(([,ref])=>ref.id),...frames.filter(f=>ids.has(f.id)).flatMap(f=>[f.availabilityZone,f.cidr].filter((v):v is string=>!!v))]);
  const contains=(v:unknown):boolean=>typeof v==='string'?references.has(v):Array.isArray(v)?v.some(contains):!!v&&typeof v==='object'?Object.values(v).some(contains):false;
  return rows.some(e=>e.kind==='node'&&e.fields.some(key=>contains(nodeValues(graph,e.id)[key])));
 }
 function evidence(graph:Graph,rows:any):DesignEvidence[]{
  if(!Array.isArray(rows)||rows.length>50)throw new Error('Provide up to 50 evidence references.');
  for(const e of rows){if(!e||!Array.isArray(e.fields)||e.fields.length>30||e.fields.some((k:unknown)=>typeof k!=='string'))throw new Error('Invalid evidence fields.');
-  const value=e.kind==='node'?graph.nodes.find(n=>n.id===e.id):e.kind==='edge'?graph.edges.find(n=>n.id===e.id):e.kind==='frame'?graph.network?.frames.find(n=>n.id===e.id):e.kind==='resource'?graph.network?.resources.find(n=>n.id===e.id):e.kind==='role'?graph.securityLibrary?.roles.find(n=>n.id===e.id):e.kind==='policy'?graph.securityLibrary?.policies.find(n=>n.id===e.id):undefined;
+  const value=e.kind==='node'?graph.nodes.find(n=>n.id===e.id):e.kind==='edge'?graph.edges.find(n=>n.id===e.id):e.kind==='frame'?graph.network?.frames.find(n=>n.id===e.id):e.kind==='resource'?(graph.network?.registry?.resources.find(n=>n.id===e.id)??graph.network?.resources.find(n=>n.id===e.id)):e.kind==='role'?graph.securityLibrary?.roles.find(n=>n.id===e.id):e.kind==='policy'?graph.securityLibrary?.policies.find(n=>n.id===e.id):undefined;
   if(!value)throw new Error('Evidence references an absent draft object: '+e.id);
-  const fields:Record<string,unknown>=e.kind==='node'?nodeValues(graph,e.id):e.kind==='resource'?(value as any).values:value as unknown as Record<string,unknown>;
+  const canonical=e.kind==='resource'?graph.network?.registry?.resources.find(r=>r.id===e.id):undefined;const fields:Record<string,unknown>=e.kind==='node'?nodeValues(graph,e.id):canonical?{...canonical.values,...(canonical.owner?{owner:canonical.owner}:{}),context:canonical.context}:e.kind==='resource'?(value as any).values:value as unknown as Record<string,unknown>;
   if(e.fields.some((key:string)=>!Object.hasOwn(fields,key)||!specified(fields[key])))throw new Error('Evidence references an unspecified field on '+e.id+'. Use actual top-level configuration field keys, or mark the requirement as missing/needs-verification.');
  }
  return structuredClone(rows);
