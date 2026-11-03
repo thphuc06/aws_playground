@@ -1,0 +1,20 @@
+// @vitest-environment jsdom
+import React from 'react';
+import {render,screen,fireEvent,waitFor,cleanup} from '@testing-library/react';
+import {IDBFactory} from 'fake-indexeddb';
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+import LabLibrary from './LabLibrary';
+import LabRunner from './LabRunner';
+beforeEach(()=>{vi.stubGlobal('indexedDB',new IDBFactory());vi.stubGlobal('confirm',vi.fn(()=>false));localStorage.clear()});
+afterEach(()=>{cleanup();vi.unstubAllGlobals()});
+it('lists 12 C03 labs and keeps C03-specific AI controls out of the C02 list',()=>{const {rerender}=render(<LabLibrary exam="DVA-C03" onOpen={()=>{}}/>);expect(screen.getByText('12 labs for DVA-C03 · synthetic local exercises')).toBeDefined();fireEvent.change(screen.getByLabelText('Search labs'),{target:{value:'SQS'}});expect(screen.getByRole('heading',{name:'Repair duplicate side effects and batch retries'})).toBeDefined();rerender(<LabLibrary exam="DVA-C02" onOpen={()=>{}}/>);fireEvent.change(screen.getByLabelText('Search labs'),{target:{value:''}});expect(screen.getByText('11 labs for DVA-C02 · synthetic local exercises')).toBeDefined();expect(screen.queryByRole('heading',{name:/Reject an unauthorized/})).toBeNull()});
+it('runs an editable fixture, saves the attempt and restores it after reopening without touching an architecture',async()=>{
+ localStorage.setItem('aws-playground-workspace-v3','personal-architecture-fixture');const dirty=vi.fn();const first=render(<LabRunner labId="rollout-rollback" onBack={()=>{}} onDirtyChange={dirty}/>);
+ await screen.findByLabelText('Initial candidate traffic (%)');fireEvent.change(screen.getByLabelText('Initial candidate traffic (%)'),{target:{value:'20'}});fireEvent.change(screen.getByLabelText('Alarm evidence scope'),{target:{value:'candidate'}});fireEvent.change(screen.getByLabelText('Deployment response'),{target:{value:'enabled'}});fireEvent.change(screen.getByLabelText('Data side-effect handling'),{target:{value:'reconcile'}});fireEvent.click(screen.getByRole('button',{name:'Check repair against fixture'}));expect(screen.getByText('All objectives met within this fixture.')).toBeDefined();expect(dirty).toHaveBeenCalledWith(true);fireEvent.click(screen.getByRole('button',{name:'Save lab session'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Save lab session'}).hasAttribute('disabled')).toBe(true));await screen.findByText('Lab session saved in this browser. Your architecture is unchanged.');first.unmount();render(<LabRunner labId="rollout-rollback" onBack={()=>{}}/>);await screen.findByLabelText('Initial candidate traffic (%)');expect((screen.getByLabelText('Initial candidate traffic (%)') as HTMLInputElement).value).toBe('20');expect(screen.getByText('All objectives met within this fixture.')).toBeDefined();expect(localStorage.getItem('aws-playground-workspace-v3')).toBe('personal-architecture-fixture');
+});
+it('labels stale results and protects an unsaved lab on its back action',async()=>{
+ const back=vi.fn();render(<LabRunner labId="telemetry" onBack={back}/>);await screen.findByLabelText('First failing boundary');fireEvent.click(screen.getByRole('button',{name:'Check repair against fixture'}));fireEvent.change(screen.getByLabelText('First failing boundary'),{target:{value:'dependency-throttle'}});expect(screen.getByText(/Values changed after the last run/)).toBeDefined();fireEvent.click(screen.getByRole('button',{name:'← All labs'}));expect(window.confirm).toHaveBeenCalled();expect(back).not.toHaveBeenCalled();
+});
+it('provides explicit in-memory recovery when storage is unavailable',async()=>{
+ vi.stubGlobal('indexedDB',undefined);render(<LabRunner labId="event-routing" onBack={()=>{}}/>);await screen.findByRole('alert');fireEvent.click(screen.getByRole('button',{name:'Continue with a fresh in-memory fixture'}));expect(screen.getByLabelText('Event pattern')).toBeDefined();expect(screen.getByRole('button',{name:'Export lab backup'})).toBeDefined();expect(screen.getByText('Unsaved lab changes')).toBeDefined();
+});
