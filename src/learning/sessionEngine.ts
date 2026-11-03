@@ -1,9 +1,10 @@
 import type {LearningExam,LearningProgress,LearningSession,PracticeMode,StudyQuestion} from './questionTypes';
-import {mistakeQuestions,questionAttempts,reviewState,scoreQuestion} from './practiceEngine';
+import {matchesPracticeContext,mistakeQuestions,questionAttempts,reviewState,scoreQuestion,type PracticeContext} from './practiceEngine';
 
-export function eligibleQuestions(bank:StudyQuestion[],progress:LearningProgress,exam:LearningExam,mode:PracticeMode,chapter?:string,now=new Date()):StudyQuestion[]{
+export function eligibleQuestions(bank:StudyQuestion[],progress:LearningProgress,exam:LearningExam,mode:PracticeMode,filter?:string|PracticeContext,now=new Date()):StudyQuestion[]{
+ const context=typeof filter==='string'?{chapter:filter}:filter??{};
  const pool=mode==='mistakes'?mistakeQuestions(bank,progress,exam,now):bank;
- return pool.filter(q=>q.examVersions.includes(exam)&&(!chapter||q.chapterIds.includes(chapter))).filter(q=>{
+ return [...new Map(pool.filter(q=>matchesPracticeContext(q,exam,context)).map(q=>[q.id,q])).values()].filter(q=>{
   const attempts=questionAttempts(progress,exam,q.id).filter(a=>a.questionRevision===q.revision);
   if(mode==='due-review')return reviewState(attempts,now).due;
   return true;
