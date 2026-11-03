@@ -10,7 +10,7 @@ export default function ThemeControl(){
  const [preference,setPreference]=useState<ThemePreference>(readThemePreference);
  useEffect(()=>{
   const media=window.matchMedia('(prefers-color-scheme: dark)');
-  const apply=()=>{const resolved=preference==='system'?(media.matches?'dark':'light'):preference;document.documentElement.dataset.theme=resolved;document.documentElement.dataset.themePreference=preference;document.querySelector('meta[name="theme-color"]')?.setAttribute('content',resolved==='dark'?'#101321':'#f5f6fb');};
+  const apply=()=>{const resolved=preference==='system'?(media.matches?'dark':'light'):preference;document.documentElement.dataset.theme=resolved;document.documentElement.dataset.themePreference=preference;document.querySelector('meta[name="theme-color"]')?.setAttribute('content',resolved==='dark'?'#111b18':'#f3f0e7');};
   apply();media.addEventListener('change',apply);return()=>media.removeEventListener('change',apply);
  },[preference]);
  useEffect(()=>{const sync=(event:StorageEvent)=>{if(event.key===themeStorageKey||event.key===null)setPreference(readThemePreference())};window.addEventListener('storage',sync);return()=>window.removeEventListener('storage',sync)},[]);

@@ -69,7 +69,7 @@ body :is(button, a, input, select, textarea, summary):focus-visible {
 .mission-card.current { background: var(--accent-soft); box-shadow: none; }
 .lab, .builder-page { box-shadow: none; }
 .run-button, .proposal-adopt button:not(:disabled), .config-save-bar button:first-of-type {
-  background: var(--accent); border-color: var(--accent); color: #ffffff; box-shadow: none;
+  background: var(--brand-solid); border-color: var(--brand-solid); color: var(--brand-on); box-shadow: none;
 }
 .workspace-modes button.active { background: var(--accent-soft); box-shadow: inset 3px 0 var(--accent); }
 

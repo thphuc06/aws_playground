@@ -5,5 +5,5 @@
  const dark=preference==='dark'||preference==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches;
  document.documentElement.dataset.theme=dark?'dark':'light';
  document.documentElement.dataset.themePreference=preference;
- document.querySelector('meta[name="theme-color"]')?.setAttribute('content',dark?'#101321':'#f5f6fb');
+ document.querySelector('meta[name="theme-color"]')?.setAttribute('content',dark?'#111b18':'#f3f0e7');
 })();

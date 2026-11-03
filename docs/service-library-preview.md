@@ -53,6 +53,10 @@ usage elsewhere in the application remains compatible.
 
 ## Color and interface decisions
 
+This section and its screenshots record the original indigo preview. The user
+subsequently selected [Forest & Parchment](forest-parchment-theme.md), which
+supersedes these color values while retaining the reviewed library content.
+
 Applied the **uiuxpromax** skill using `developer documentation learning library`
 with `--design-system` and the detected React stack. Its documentation-first,
 minimal grid and indigo direction were adapted to the existing application.
