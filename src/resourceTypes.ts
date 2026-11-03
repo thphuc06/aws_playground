@@ -3,7 +3,8 @@ export const canonicalResourceKinds=['vpc','subnet','security-group','route-tabl
 export type CanonicalResourceKind=typeof canonicalResourceKinds[number];
 export interface ResourceContext {partition?:string;accountId?:string;region?:string;availabilityZone?:string}
 export type ResourceRef={type:'local';kind:CanonicalResourceKind;id:string}|{type:'external';kind:CanonicalResourceKind;id:string;context?:ResourceContext};
-export interface CanonicalResource {id:string;kind:CanonicalResourceKind;name:string;context:ResourceContext;owner?:ResourceRef;values:Record<string,JsonValue>;sourceKey?:string}
+export type ResourceAssociation=ResourceRef|{type:'service';id:string};
+export interface CanonicalResource {id:string;kind:CanonicalResourceKind;name:string;context:ResourceContext;owner?:ResourceRef;values:Record<string,JsonValue>;associations?:ResourceAssociation[];sourceKey?:string}
 export interface ServiceResourceBinding {resource?:ResourceRef;vpc?:ResourceRef;subnets:ResourceRef[];securityGroups:ResourceRef[];networkInterfaces:ResourceRef[]}
 export interface ResourceMigrationConflict {id:string;kind:'possible-duplicate'|'placement'|'inline-security-group'|'unresolved-reference';message:string;resourceIds:string[];nodeId?:string;field?:'vpc'|'subnets';candidates?:ResourceRef[];status:'unresolved'|'kept-separate'|'resolved';resolution?:string}
 export interface ResourceMigration {version:1;sourceGraph:unknown;conflicts:ResourceMigrationConflict[];notes:string[]}

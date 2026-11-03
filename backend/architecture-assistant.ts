@@ -1,3 +1,4 @@
+import {assessConfigurationMutation} from '../src/configurationRepair';
 import {networkFindings} from '../src/networkValidation';
 import {auditCompletion} from './completion-audit';
 import {purposeRequirements,configurationInventory,emptyFrames} from '../src/completionAudit';
@@ -57,10 +58,10 @@ export class DraftSession {
   if(!Array.isArray(raw))throw new Error('Provide operations as the typed array from the tool schema.');
   const operations=raw.map((o:any)=>{if(!o||!['add-node','remove-node','add-edge','remove-edge','configure'].includes(o.op))throw new Error('Unsupported operation. Use add-node, remove-node, add-edge, remove-edge or configure.');if(o.op==='configure'){if(!Array.isArray(o.settings)||o.node!==null||o.edge!==null)throw new Error('Configure requires id/settings and null node/edge.');const value:Record<string,unknown>=Object.create(null);for(const field of o.settings){if(!field||typeof field.key!=='string'||Object.hasOwn(value,field.key)||['__proto__','constructor','prototype'].includes(field.key))throw new Error('Invalid or duplicate configuration key.');value[field.key]=field.value;}const node=this.draft.nodes.find(n=>n.id===o.id);if(!node)throw new Error('Unknown configuration node.');const document=migrateConfiguration(node.service,this.draft.architecture?.nodes[node.id]??{});Object.assign(document.values,value);return {op:o.op,id:o.id,target:'architecture',value:document};}if(o.op==='add-node'&&o.id===null&&o.edge===null&&o.settings===null)return {op:o.op,node:o.node};if(o.op==='add-edge'&&o.id===null&&o.node===null&&o.settings===null)return {op:o.op,edge:o.edge};if(['remove-node','remove-edge'].includes(o.op)&&o.node===null&&o.edge===null&&o.settings===null)return {op:o.op,id:o.id};throw new Error('Unused operation fields must be null.');});if(!Array.isArray(operations)||operations.length>50||!Array.isArray(args.relationships)||args.relationships.length>100)throw new Error('Batch limit exceeded.');
   for(const op of operations){if(op.op==='configure'&&op.target!=='architecture')throw new Error('Only architectural configuration may be changed.');if(op.op==='remove-node'&&this.request.protectedNodeIds.includes(op.id))throw new Error('Protected node cannot be removed.');}
-  const preview=previewProposal(this.draft,{baseFingerprint:fingerprintGraph(this.draft),operations:operations as Operation[]});if(!preview.ok)throw new Error(preview.error);
+  const preview=previewProposal(this.draft,{baseFingerprint:fingerprintGraph(this.draft),operations:operations as Operation[]},'repair');if(!preview.ok)throw new Error(preview.error);
   const next=preview.after;next.architecture??={nodes:{},relationships:{}};
   for(const relation of args.relationships){if(!next.edges.some(e=>e.id===relation.edgeId)||!relationshipKinds.includes(relation.kind))throw new Error('Invalid relationship.');next.architecture.relationships[relation.edgeId]=relation.kind;}
-  const valid=validateReviewGraph(next);if(!valid.ok)throw new Error(valid.error);
+  const valid=validateReviewGraph(next,'stored-editable');if(!valid.ok)throw new Error(valid.error);const assessment=assessConfigurationMutation(this.draft,next,operations.filter(op=>op.op==='configure').map(op=>(op as any).id));if(assessment.blocking.length)throw new Error(assessment.blocking.map(f=>f.detail).join(' '));
   this.draft=valid.graph;this.validated=false;this.lastEditError=null;return {changes:preview.changes,nodeCount:next.nodes.length,edgeCount:next.edges.length};
  }
  finish(args:any){

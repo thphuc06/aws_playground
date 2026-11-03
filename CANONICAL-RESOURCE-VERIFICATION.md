@@ -106,3 +106,30 @@ The raw-inspector recovery bridge must include the new canonical resource editor
 unsaved values when root integrates its shared draft-snapshot API. Current dirty
 notifications and saved-only export wording remain in effect until that bridge is
 connected.
+
+## Independent-review corrections — 2026-11-03
+
+- VPN customer/target gateways and VPN route targets now migrate through exact
+  legacy identity aliases. Unknown gateway kinds remain explicit ledger decisions.
+- Lambda's old `networkInterfaces` table is migrated to subnet/security-group
+  bindings and archived in legacy notes. No managed ENI resource is invented.
+- Generic assignments use a separate `resource.associations` array. The existing
+  transit-gateway `values.attachments` table remains a distinct schema; known IDs
+  become tracked references, unknown identities remain review decisions. Earlier
+  generic Graph 2 attachment lists are backward-read and normalized when edited.
+- Clones clear consumer associations and transit attachment rows. The UI opens a
+  new unsaved copy for review instead of attempting to persist duplicate subnet
+  CIDRs or assignments. Ordinary configuration/dependency references remain visible.
+- External reference identity is encoded distinctly in the temporary legacy-check
+  projection, so an external SG cannot collide with a local prefix list's ID.
+- Backend repair edits accept a typed-but-invalid before state. Delete, layout and
+  security edits use delta assessment; final validation/adoption remain strict.
+- Virtual geometry stays bounded at the full 1,000-resource app limit.
+- Migration-decision-only changes are included in the semantic diff and can produce
+  a changed proposal without inventing a configuration or layout modification.
+
+The correction suite includes exact reviewer reproductions, source immutability,
+tracked deletion, EIP/route-table clones, old generic-association compatibility,
+the 1,000-resource boundary and a conflict-only finished proposal. Seven targeted
+test files passed 112 tests; frontend/backend typechecks passed. Independent
+recheck and integrated browser verification remain root-owned.
