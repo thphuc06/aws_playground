@@ -46,4 +46,18 @@ describe('bilingual chapter worked cases',()=>{
   const link=JSON.parse(getWorkedCaseForChapter('dev-objects')!.input.code);
   expect(link.requestAtMinute).toBeLessThan(link.requestedLinkMinutes);expect(link.requestAtMinute).toBeGreaterThan(link.signerSessionRemainingMinutes);
  });
+ it('uses the declared full item key in both conditional-create attempts and in the condition',()=>{
+  const fixture=JSON.parse(getWorkedCaseForChapter('dev-data-safety')!.input.code);
+  const partitionKey=fixture.tableKeySchema.partitionKey;
+  expect(fixture.tableKeySchema.sortKey).toBeNull();
+  const conditionAttribute=/^attribute_not_exists\((\w+)\)$/.exec(fixture.proposedCondition)?.[1];
+  expect(conditionAttribute).toBe(partitionKey);
+  for(const attempt of [fixture.attemptA,fixture.attemptB]){
+   expect(Object.hasOwn(attempt,partitionKey)).toBe(true);
+   expect(typeof attempt[partitionKey]).toBe('string');
+   expect(attempt[partitionKey].length).toBeGreaterThan(0);
+  }
+  expect(fixture.attemptA[partitionKey]).toBe(fixture.attemptB[partitionKey]);
+  expect(fixture.attemptA.owner).not.toBe(fixture.attemptB.owner);
+ });
 });
