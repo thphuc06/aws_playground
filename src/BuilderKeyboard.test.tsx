@@ -67,3 +67,28 @@ it('snaps a dragged service onto its folding wire and merges the segments on rel
  act(()=>flow.current.onNodeDragStop({},{id:'fn'},[]));
  expect(latest!.edgeLayouts!.call.waypoints).toEqual([{x:24,y:150},{x:276,y:150},{x:276,y:50}]);
 });
+
+it('gives frame nodes their stored size so resizing starts from the frame instead of collapsing it',()=>{
+ render(<Builder value={{version:1,nodes:[],edges:[],configs:{},network:{version:1,frames:[{id:'vpc',kind:'vpc',name:'Main VPC',x:0,y:0,width:910,height:640}],membership:{},resources:[]}}} onChange={()=>{}}/>);
+ const frame=flow.current.nodes.find((n:any)=>n.id==='vpc');expect(frame.measured).toEqual({width:910,height:640});
+});
+it('asks to discard unsaved settings inside the workspace instead of a native dialog that leaves full screen',()=>{
+ const native=vi.fn(()=>true);vi.stubGlobal('confirm',native);
+ render(<Builder value={{version:1,nodes:[{id:'fn',service:'lambda',label:'Worker',position:{x:0,y:0}}],edges:[],configs:{}}} onChange={()=>{}}/>);
+ fireEvent.click(screen.getByRole('button',{name:'fn'}));fireEvent.change(screen.getByLabelText(/^Timeout/,{selector:'input'}),{target:{value:'12'}});
+ fireEvent.click(screen.getByRole('button',{name:'Close settings'}));
+ const dialog=screen.getByRole('alertdialog');expect(dialog.textContent).toContain('Discard unsaved configuration edits');expect(document.activeElement?.textContent).toBe('Keep editing');
+ // Escape cancels the prompt and is marked handled, so focus mode does not also exit.
+ expect(fireEvent.keyDown(dialog,{key:'Escape'})).toBe(false);
+ expect(screen.queryByRole('alertdialog')).toBeNull();expect(screen.getByLabelText(/^Timeout/,{selector:'input'})).toBeDefined();
+ fireEvent.click(screen.getByRole('button',{name:'Close settings'}));fireEvent.click(screen.getByRole('button',{name:'Discard changes'}));
+ expect(screen.queryByRole('alertdialog')).toBeNull();expect(screen.queryByLabelText(/^Timeout/,{selector:'input'})).toBeNull();expect(native).not.toHaveBeenCalled();
+});
+it('links a subnet dropped into a VPC and gives an empty subnet a CIDR from the VPC range',()=>{
+ let latest:Graph;
+ function Harness(){const [g,setG]=useState<Graph>({version:1,nodes:[],edges:[],configs:{},network:{version:1,frames:[{id:'vpc',kind:'vpc',name:'Main VPC',x:0,y:0,width:900,height:600,cidr:'10.0.0.0/16'},{id:'used',kind:'subnet',name:'Existing',x:40,y:60,width:300,height:200,cidr:'10.0.0.0/24',parentId:'vpc'},{id:'subnet',kind:'subnet',name:'App subnet',x:1200,y:0,width:300,height:200}],membership:{},resources:[]}});latest=g;return <Builder value={g} onChange={setG}/>}
+ render(<Harness/>);
+ act(()=>flow.current.onNodeDragStart({},{id:'subnet'},[]));act(()=>flow.current.onNodesChange([{id:'subnet',type:'position',position:{x:420,y:80},dragging:true}]));act(()=>flow.current.onNodeDragStop({},{id:'subnet'},[]));
+ const subnet=latest!.network!.frames.find(f=>f.id==='subnet')!;expect(subnet.parentId).toBe('vpc');expect(subnet.cidr).toBe('10.0.1.0/24');
+ expect(flow.current.nodes.find((n:any)=>n.id==='subnet').data.vpc).toBe('Main VPC');
+});
