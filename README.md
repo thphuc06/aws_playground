@@ -119,7 +119,7 @@ React 19, TypeScript, Vite, React Flow and Lucide. The learning canvas remains b
 
 ## Build and study
 
-- Search/filter the categorized catalog. All 47 entries from AWS's published in-scope list are draggable/placeable; AWS explicitly calls that list non-exhaustive and changeable. Snapshot verified 2026-11-01.
+- Search/filter the categorized catalog. All 47 entries from AWS's published in-scope list are draggable/placeable (Amazon VPC is placed as a VPC frame: a network boundary that contains subnets and services; legacy VPC nodes can be converted from their settings with a preview and undo); AWS explicitly calls that list non-exhaustive and changeable. Snapshot verified 2026-11-01.
 - Drag service cards to the canvas, or use Add. Desktop has a collapsible left catalog sidebar and an independent learning-navigation toggle. The canvas expands when either panel is hidden. On narrow screens the catalog opens as a left drawer with Escape dismissal and focus management, not an inline expanding section. Sidebar preferences persist locally without changing the graph.
 - Drag between node handles. Touch/keyboard alternatives: select a node, choose Connect to…, then select the destination. Enter/Space activates a focused node/arrow.
 - Select arrows to inspect configuration or type a descriptive relationship label. Labels do not change actual integration semantics. Move source/target actions or endpoint dragging reconnect arrows; invalid/canceled changes preserve the original. Valid endpoint changes retain labels and reset permissions for review.

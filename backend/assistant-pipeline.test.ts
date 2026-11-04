@@ -1,5 +1,5 @@
 import {describe,it,expect,vi} from 'vitest';
-import {DraftSession,parseAssistantRequest,runAssistant} from './architecture-assistant';
+import {DraftSession,parseAssistantRequest,runAssistant,assistantTools} from './architecture-assistant';
 import {workflowSettings} from './assistant-config';
 import {fingerprintGraph,type Graph} from '../src/architectureReview';
 import {reviewConfig} from './server';
@@ -93,5 +93,13 @@ describe('planner and builder pipeline',()=>{
   expect(workflowSettings({}).planner).toEqual({reasoning:'low',responses:8});
   expect(workflowSettings({REVIEW_PLANNER_REASONING_EFFORT:'medium',REVIEW_PLANNER_MAX_RESPONSES:'12'}).planner).toEqual({reasoning:'medium',responses:12});
   expect(()=>workflowSettings({REVIEW_PLANNER_MAX_RESPONSES:'1'})).toThrow('REVIEW_PLANNER_MAX_RESPONSES');expect(()=>workflowSettings({REVIEW_PLANNER_REASONING_EFFORT:'extreme'})).toThrow('REVIEW_PLANNER_REASONING_EFFORT');
+ });
+});
+describe('Amazon VPC as a frame',()=>{
+ it('never lets the agent add a VPC node and points it at frames instead',()=>{
+  const tool=(assistantTools as any[]).find(t=>t.name==='edit_draft');expect(tool.parameters.properties.operations.items.properties.node.anyOf[0].properties.service.enum).not.toContain('vpc');
+  const session=new DraftSession(parseAssistantRequest({...base,mode:'design',approvedPlan:{changes:[],sources:[]}}));
+  expect(()=>session.edit({operations:[{op:'add-node',id:null,node:{id:'net',service:'vpc',label:'VPC',position:{x:0,y:0}},edge:null,settings:null}],relationships:[]})).toThrow('modeled as a frame');
+  expect(session.draft.nodes).toHaveLength(2);
  });
 });

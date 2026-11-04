@@ -92,3 +92,22 @@ it('links a subnet dropped into a VPC and gives an empty subnet a CIDR from the 
  const subnet=latest!.network!.frames.find(f=>f.id==='subnet')!;expect(subnet.parentId).toBe('vpc');expect(subnet.cidr).toBe('10.0.1.0/24');
  expect(flow.current.nodes.find((n:any)=>n.id==='subnet').data.vpc).toBe('Main VPC');
 });
+it('adds Amazon VPC from the catalog as a configurable frame instead of a service node',()=>{
+ let latest:Graph;
+ function Harness(){const [g,setG]=useState<Graph>({version:1,nodes:[],edges:[],configs:{}});latest=g;return <Builder value={g} onChange={setG}/>}
+ render(<Harness/>);fireEvent.click(screen.getByRole('button',{name:'Add Amazon VPC'}));
+ expect(latest!.nodes).toHaveLength(0);expect(latest!.network!.frames).toEqual([expect.objectContaining({kind:'vpc',name:'Application VPC'})]);
+ expect(screen.getAllByLabelText(/^Flow log/).length).toBeGreaterThanOrEqual(2);expect(screen.getAllByLabelText(/^CIDR/).length).toBeGreaterThan(0);
+});
+it('converts a legacy VPC node through an in-app preview and can undo the conversion',()=>{
+ let latest:Graph;const doc=(values:any)=>({schemaVersion:2,values,legacyNotes:{}});
+ function Harness(){const [g,setG]=useState<Graph>({version:1,nodes:[{id:'net',service:'vpc',label:'Shop VPC',position:{x:100,y:100}},{id:'fn',service:'lambda',label:'Orders',position:{x:900,y:100}}],edges:[{id:'e1',source:'fn',target:'net'}],configs:{},architecture:{relationships:{},nodes:{net:doc({cidr:'10.0.0.0/16',subnets:[{id:'app',cidr:'10.0.1.0/24'}]}),fn:doc({vpc:{type:'node',id:'net'}})}} as any});latest=g;return <Builder value={g} onChange={setG}/>}
+ render(<Harness/>);fireEvent.click(screen.getByRole('button',{name:'net'}));
+ expect(screen.getByRole('region',{name:'Legacy VPC node'})).toBeDefined();expect(latest!.nodes).toHaveLength(2);
+ fireEvent.click(screen.getByRole('button',{name:'Convert to VPC frame…'}));
+ const dialog=screen.getByRole('dialog',{name:/Convert “Shop VPC”/});expect(dialog.textContent).toContain('10.0.1.0/24');expect(dialog.textContent).toContain('Orders → Shop VPC');
+ fireEvent.click(screen.getByRole('button',{name:'Convert'}));
+ expect(latest!.nodes.map(n=>n.id)).toEqual(['fn']);const vpc=latest!.network!.frames.find(f=>f.kind==='vpc')!;expect(vpc.cidr).toBe('10.0.0.0/16');expect((latest!.architecture!.nodes.fn as any).values.vpc).toEqual({type:'frame',id:vpc.id});
+ fireEvent.click(screen.getByRole('button',{name:'Undo VPC conversion'}));
+ expect(latest!.nodes.map(n=>n.id)).toEqual(['net','fn']);expect(latest!.network?.frames.some(f=>f.kind==='vpc')).toBeFalsy();
+});
