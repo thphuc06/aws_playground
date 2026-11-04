@@ -29,6 +29,10 @@ services:
         value: gpt-6.1-terra
       - key: REVIEW_REASONING_EFFORT
         value: 'medium'
+      - key: REVIEW_PLANNER_REASONING_EFFORT
+        value: 'low'
+      - key: REVIEW_PLANNER_MAX_RESPONSES
+        value: '8'
       - key: REVIEW_MAX_RESPONSES
         value: '32'
       - key: REVIEW_MAX_TOOL_CALLS

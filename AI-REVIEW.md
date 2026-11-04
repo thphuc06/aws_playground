@@ -23,6 +23,10 @@ Unsupported simulator relationships do not make an architecture invalid in AWS.
 
 ## Agent and references
 
+Since 2026-11-04 the workflow is a read-only planner followed by a builder; see
+TERRA-WORKFLOW.md. `get_service_handbook` returns the curated study handbook sections
+(no example code) with registered source IDs and is preferred over live search.
+
 GPT-6.1 Sol uses the Responses API, medium reasoning, store:false and strict
 function definitions. Tools are get_service_schema, get_relevant_references,
 search_aws_docs, edit_draft, validate_draft and finish_draft. Tool arguments,

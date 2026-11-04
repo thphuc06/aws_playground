@@ -10,6 +10,8 @@ Set these after deploying the new backend. Existing Sol remains supported during
 |---|---|
 | REVIEW_MODEL | gpt-6.1-terra |
 | REVIEW_REASONING_EFFORT | medium |
+| REVIEW_PLANNER_REASONING_EFFORT | low |
+| REVIEW_PLANNER_MAX_RESPONSES | 8 |
 | REVIEW_MAX_RESPONSES | 32 |
 | REVIEW_MAX_TOOL_CALLS | 100 |
 | REVIEW_MAX_SEARCHES | 6 |
@@ -19,6 +21,32 @@ Set these after deploying the new backend. Existing Sol remains supported during
 Keep OPENAI_API_KEY, REVIEW_ENABLED=true, the exact Site REVIEW_ALLOWED_ORIGINS and Node22. No new secret is needed. These are code defaults as well as Blueprint/example settings. The actual model comes from the env; no silent model fallback occurs.
 
 Finite override ranges:4–64 Responses,8–200 function calls,0–12 searches,2048–32768 output tokens per Response,60–1800 seconds. Invalid settings disable AI with a configuration error. Search Responses count toward the provider-response budget. Tools execute sequentially and mutations stay atomic. Topology batches allow up to50 operations. One simultaneous workflow and3 starts/minute per process remain.
+
+## Planner → builder pipeline (2026-11-04)
+
+A design run is two bounded phases sharing one usage/limit budget:
+
+1. **Planner** (also the whole of *Review & plan only*): read-only tools
+   (schemas, curated references, `get_service_handbook`, network schema, AWS-only search,
+   validation) with `parallel_tool_calls`, `REVIEW_PLANNER_REASONING_EFFORT` (default `low`) and at
+   most `REVIEW_PLANNER_MAX_RESPONSES` (2–24, default 8). It finishes with `finish_review`: findings
+   about the original plus `plannedChanges` validated on the server (known nodes, catalog services,
+   registered sources, never removing a protected node).
+2. **Builder**: a fresh context with the graph, server preflight, the approved plan and the planner
+   summary only, not the planner transcript. Schemas for planned services are preloaded so its tool
+   list is fixed from the first round. Mutations stay sequential and atomic; `finish_draft` still
+   requires the model's own `validate_draft` on the latest draft.
+
+The browser can stop after the planner, untick changes and send `approvedPlan` (changes plus the
+sources they cite). The server re-validates it as untrusted data, re-registers official sources only
+and skips planning. Checkpoints carry the plan so *Continue unfinished draft* also skips planning.
+
+Prompt caching: per-phase instructions and tool lists are identical across rounds, the remaining-step
+note is a transient last input item, and requests carry `prompt_cache_key`
+(`aws-playground:planner|builder`). Reported `cached_tokens` are summed into `usage.cachedInputTokens`
+and shown with the run usage. Before this change every round changed the instructions and the
+dynamic configuration schema, which defeated prefix caching. Real cache-hit rates and cost were not
+measured here; only fixture tests ran.
 
 ## Recovery
 
