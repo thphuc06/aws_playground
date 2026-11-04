@@ -1,5 +1,5 @@
 import {it,expect} from 'vitest';
-import {anchorRoute,connectionCandidate,reconnectCandidate,followMovedEndpoints} from './connectionInteraction';
+import {anchorRoute,connectionCandidate,reconnectCandidate,followMovedEndpoints,followDraggedEndpoints,snapNodeToWires,mergeDraggedWires} from './connectionInteraction';
 import type {Graph} from './architectureReview';
 import {wireControlAt} from './orthogonalEditing';
 it('anchors a cached route to the current actual handles',()=>{const source={x:151,y:64},target={x:410,y:154},route=anchorRoute(source,target,[{x:150,y:90},{x:300,y:90},{x:300,y:180},{x:400,y:180}]);expect(route[0]).toEqual(source);expect(route.at(-1)).toEqual(target);for(let i=1;i<route.length;i++)expect(route[i].x===route[i-1].x||route[i].y===route[i-1].y).toBe(true)});
@@ -7,3 +7,19 @@ it('does not create micro doglegs for fractional handle/route measurement differ
 it('allows reconnecting the same edge but rejects duplicates and self connections',()=>{const edges=[{id:'ab',source:'a',target:'b'},{id:'ac',source:'a',target:'c'}];expect(connectionCandidate('a','b',edges,'ab')).toBe(true);expect(connectionCandidate('a','c',edges,'ab')).toBe(false);expect(connectionCandidate('a','a',edges,'ab')).toBe(false);expect(reconnectCandidate(edges[0],'source','d')).toEqual({source:'a',target:'d'});expect(reconnectCandidate(edges[0],'target','d')).toEqual({source:'d',target:'b'})});
 it('picks the held segment or nearby corner, including short segments',()=>{const route=[{x:0,y:0},{x:100,y:0},{x:100,y:30},{x:200,y:30}];expect(wireControlAt(route,{x:50,y:2},8)).toMatchObject({kind:'segment',index:0,point:{x:50,y:0}});expect(wireControlAt(route,{x:102,y:1},8)).toMatchObject({kind:'corner',index:1});expect(wireControlAt(route,{x:101,y:15},8)).toMatchObject({kind:'segment',index:1})});
 it('moves a manually shaped terminal leg with its target without retaining its old tail',()=>{const before:Graph={version:1,nodes:[{id:'a',service:'lambda',label:'A',position:{x:0,y:0}},{id:'b',service:'sqs',label:'B',position:{x:300,y:0}}],edges:[{id:'ab',source:'a',target:'b'}],configs:{},edgeLayouts:{ab:{style:'orthogonal',waypoints:[{x:24,y:0},{x:24,y:100},{x:276,y:100},{x:276,y:0}]}}};const after=structuredClone(before);after.nodes[1].position={x:200,y:-100};const next=followMovedEndpoints(before,after);expect(next.edgeLayouts!.ab.waypoints).toEqual([{x:24,y:0},{x:24,y:100},{x:176,y:100},{x:176,y:-100}]);expect(before.edgeLayouts!.ab.waypoints!.at(-1)).toEqual({x:276,y:0});const together=structuredClone(before);together.nodes.forEach(n=>{n.position.x+=50;n.position.y+=30});expect(followMovedEndpoints(before,together).edgeLayouts!.ab.waypoints).toEqual(before.edgeLayouts!.ab.waypoints!.map(p=>({x:p.x+50,y:p.y+30})))});
+const loop=():Graph=>({version:1,nodes:[{id:'a',service:'lambda',label:'A',position:{x:0,y:0}},{id:'b',service:'sqs',label:'B',position:{x:300,y:0}}],edges:[{id:'ab',source:'a',target:'b'}],configs:{},edgeLayouts:{ab:{style:'orthogonal',waypoints:[{x:24,y:50},{x:24,y:150},{x:276,y:150},{x:276,y:50}]}}});
+const moved=(start:Graph,position:{x:number;y:number})=>{const after=structuredClone(start);after.nodes[0].position=position;return followDraggedEndpoints(start,after)};
+it('snaps a dragged service onto the segment its wire is folding into, scaled by zoom',()=>{const start=loop();
+ expect(snapNodeToWires(start,'a',{x:0,y:97})).toEqual({position:{x:0,y:100},snapped:true});
+ expect(snapNodeToWires(start,'a',{x:3,y:90}).snapped).toBe(false);
+ expect(snapNodeToWires(start,'a',{x:3,y:90},.5)).toEqual({position:{x:3,y:100},snapped:true});
+ expect(snapNodeToWires(start,'b',{x:300,y:96})).toEqual({position:{x:300,y:100},snapped:true});
+ expect(snapNodeToWires(start,'a',{x:0,y:40}).snapped).toBe(false)});
+it('merges the collapsed jog into one straight segment when the service is released',()=>{const start=loop(),after=moved(start,snapNodeToWires(start,'a',{x:0,y:97}).position);
+ expect(after.edgeLayouts!.ab.waypoints).toEqual([{x:24,y:150},{x:24,y:150},{x:276,y:150},{x:276,y:50}]);
+ expect(mergeDraggedWires(start,after).edgeLayouts!.ab.waypoints).toEqual([{x:24,y:150},{x:276,y:150},{x:276,y:50}]);
+ expect(mergeDraggedWires(start,start)).toBe(start)});
+it('collapses a whole detour when the service is dragged onto its far corner',()=>{const start=loop(),snap=snapNodeToWires(start,'a',{x:250,y:0});expect(snap.position).toEqual({x:252,y:0});
+ expect(mergeDraggedWires(start,moved(start,snap.position)).edgeLayouts!.ab.waypoints).toEqual([{x:276,y:50}])});
+it('re-derives the wire from the drag start so crossing a segment does not capture it',()=>{const start=loop();moved(start,{x:0,y:100});
+ expect(moved(start,{x:0,y:130}).edgeLayouts!.ab.waypoints).toEqual([{x:24,y:180},{x:24,y:150},{x:276,y:150},{x:276,y:50}])});

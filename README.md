@@ -46,7 +46,7 @@ for release gates. Source and deployment status are verified independently.
 Wire editing: select a line, then drag either end onto a service body to reconnect.
 Selecting a wire reveals a circular handle at every straight-segment midpoint.
 Drag only these handles to reshape it; the wire itself only selects. New segments
-receive midpoint handles after release. Escape restores the pre-drag route. Connection actions stay in the canvas header, outside the drawing area, including full-screen mode. Alignment snaps within 6 screen pixels and holds until 10 pixels away; Alt bypasses snapping. Rejoining this wire removes redundant overlap/backtracking and merges collinear segments. Keyboard users can Tab to controls or use Source/Target service in
+receive midpoint handles after release. Escape restores the pre-drag route. Connection actions stay in the canvas header, outside the drawing area, including full-screen mode. Alignment snaps within 6 screen pixels and holds until 10 pixels away; Alt bypasses snapping. Rejoining this wire removes redundant overlap/backtracking and merges collinear segments. Dragging a service box does the same for its manual wires: within 8 screen pixels the box snaps so the short jog beside it closes, and releasing merges the folded segments into one; the wire is re-derived from its drag-start shape, so passing over a segment does not capture it. Keyboard users can Tab to controls or use Source/Target service in
 Connection configuration. Automatic wires reroute when their endpoints move;
 unrelated wires stay put. Invalid drops preserve the existing connection.
 

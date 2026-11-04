@@ -5,7 +5,7 @@ import {render,screen,fireEvent,cleanup,waitFor,act} from '@testing-library/reac
 import type {Graph} from './architectureReview';
 vi.mock('./ArchitectureStudio',()=>({default:({Canvas,...props}:any)=><Canvas {...props}/>}));
 const flow=vi.hoisted(()=>({current:null as any}));
-vi.mock('@xyflow/react',()=>({ReactFlowProvider:({children}:any)=>children,ReactFlow:(props:any)=>{flow.current=props;const {nodes,edges,onNodeClick,onEdgeClick,children}=props;return <div>{nodes.map((n:any)=><button key={n.id} onClick={()=>onNodeClick({},n)}>{n.type==='networkFrame'?n.data.label:n.id}</button>)}{edges?.map((e:any)=><button key={e.id} onClick={()=>onEdgeClick({},e)}>edge-{e.id}</button>)}{children}</div>},useViewport:()=>({zoom:1,x:0,y:0}),useReactFlow:()=>({fitView:()=>Promise.resolve(),screenToFlowPosition:(p:any)=>p}),NodeResizer:()=>null,Background:()=>null,Controls:()=>null,MarkerType:{ArrowClosed:'arrowclosed'},Position:{Right:'right',Left:'left'}}));
+vi.mock('@xyflow/react',()=>({ReactFlowProvider:({children}:any)=>children,ReactFlow:(props:any)=>{flow.current=props;const {nodes,edges,onNodeClick,onEdgeClick,children}=props;return <div>{nodes.map((n:any)=><button key={n.id} onClick={()=>onNodeClick({},n)}>{n.type==='networkFrame'?n.data.label:n.id}</button>)}{edges?.map((e:any)=><button key={e.id} onClick={()=>onEdgeClick({},e)}>edge-{e.id}</button>)}{children}</div>},useViewport:()=>({zoom:1,x:0,y:0}),useReactFlow:()=>({fitView:()=>Promise.resolve(),screenToFlowPosition:(p:any)=>p,getZoom:()=>1}),NodeResizer:()=>null,Background:()=>null,Controls:()=>null,MarkerType:{ArrowClosed:'arrowclosed'},Position:{Right:'right',Left:'left'}}));
 import Builder from './Builder';
 beforeEach(()=>vi.stubGlobal('matchMedia',()=>({matches:false,addEventListener:()=>{},removeEventListener:()=>{}})));
 afterEach(()=>{cleanup();localStorage.clear();vi.unstubAllGlobals()});
@@ -53,4 +53,17 @@ it('changes only the selected service icon and restores the default size',()=>{
  fireEvent.change(size,{target:{value:'48'}});
  expect(size.value).toBe('48');
  expect(changed.mock.lastCall?.[0].nodes[0].iconSize).toBeUndefined();
+});
+
+it('snaps a dragged service onto its folding wire and merges the segments on release',()=>{
+ let latest:Graph;
+ function Harness(){const [g,setG]=useState<Graph>({version:1,nodes:[{id:'fn',service:'lambda',label:'Worker',position:{x:0,y:0}},{id:'queue',service:'sqs',label:'Jobs',position:{x:300,y:0}}],edges:[{id:'call',source:'fn',target:'queue'}],configs:{},edgeLayouts:{call:{style:'orthogonal',waypoints:[{x:24,y:50},{x:24,y:150},{x:276,y:150},{x:276,y:50}]}}});latest=g;return <Builder value={g} onChange={setG}/>}
+ render(<Harness/>);
+ act(()=>flow.current.onNodeDragStart({},{id:'fn'},[]));
+ act(()=>flow.current.onNodesChange([{id:'fn',type:'position',position:{x:0,y:130},dragging:true}]));
+ expect(latest!.edgeLayouts!.call.waypoints).toEqual([{x:24,y:180},{x:24,y:150},{x:276,y:150},{x:276,y:50}]);
+ act(()=>flow.current.onNodesChange([{id:'fn',type:'position',position:{x:0,y:97},dragging:false}]));
+ expect(latest!.nodes[0].position).toEqual({x:0,y:100});
+ act(()=>flow.current.onNodeDragStop({},{id:'fn'},[]));
+ expect(latest!.edgeLayouts!.call.waypoints).toEqual([{x:24,y:150},{x:276,y:150},{x:276,y:50}]);
 });
